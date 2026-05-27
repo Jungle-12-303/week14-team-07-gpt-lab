@@ -33,8 +33,8 @@ class BPETokenizer:
 
     def __init__(self, vocab_size: int = 3000):
         self.vocab_size = vocab_size
-        self.id_to_token = {}
-        self.token_to_id = {}
+        self.id_to_token = {}   # decode: id → token (0 -> "<pad>")
+        self.token_to_id = {}   # encode: token → id ("<pad>" -> 0)
         self.merges = []
 
     def _init_special_tokens(self):
@@ -43,7 +43,25 @@ class BPETokenizer:
         1. 특수 토큰 4개를 고정 ID 0~3에 등록합니다.
         2. byte 0~255를 ID 4~259에 bytes([byte_value]) 형태로 등록합니다.
         """
-        raise NotImplementedError("_init_special_tokens를 구현하세요.")
+        # token ID 0~3은 특수 토큰이 쓰고 있으니까, byte token ID는 4를 더해서 쓴다.
+        # byte:     [236, 149, 136, 235, 133, 149]
+        # token ID: [240, 153, 140, 239, 137, 153]
+
+        # 초기화(방어 장치)
+        self.id_to_token = {}
+        self.token_to_id = {}
+        self.merges = []
+
+        for token in SPECIAL_TOKENS:
+            token_id = SPECIAL_IDS[token]
+            self.id_to_token[token_id] = token
+            self.token_to_id[token] = token_id
+
+        for i in range(NUM_BYTES):
+            token_id = BYTE_OFFSET + i
+            token = bytes([i])
+            self.id_to_token[token_id] = token
+            self.token_to_id[token] = token_id
 
     def get_pad_id(self):
         """padding 토큰 ID."""
