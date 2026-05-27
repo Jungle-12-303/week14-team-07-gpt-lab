@@ -10,15 +10,15 @@ UTF-8 byte-level BPE 토크나이저 과제 템플릿.
 from pathlib import Path
 
 
-PAD_TOKEN = "<pad>"
-UNK_TOKEN = "<unk>"
-BOS_TOKEN = "<bos>"
-EOS_TOKEN = "<eos>"
+PAD_TOKEN = "<pad>" # 빈칸 채우기용(padding)
+UNK_TOKEN = "<unk>" # 모르는 단어(unkonwn)
+BOS_TOKEN = "<bos>" # 문장 시작(begging of sequence)
+EOS_TOKEN = "<eos>" # 문장 끝(end of sequence)
 
 SPECIAL_TOKENS = [PAD_TOKEN, UNK_TOKEN, BOS_TOKEN, EOS_TOKEN]
 SPECIAL_IDS = {token: idx for idx, token in enumerate(SPECIAL_TOKENS)}
-BYTE_OFFSET = len(SPECIAL_TOKENS)
-NUM_BYTES = 256
+BYTE_OFFSET = len(SPECIAL_TOKENS)   # 4
+NUM_BYTES = 256 # 0~255까지
 
 
 class BPETokenizer:
@@ -37,15 +37,23 @@ class BPETokenizer:
         self.token_to_id = {}   # encode: token → id ("<pad>" -> 0)
         self.merges = []
 
+    # 특수 토큰/byte 토큰 등록, token-id 양방향 매핑
     def _init_special_tokens(self):
         """
         TODO:
         1. 특수 토큰 4개를 고정 ID 0~3에 등록합니다.
         2. byte 0~255를 ID 4~259에 bytes([byte_value]) 형태로 등록합니다.
+        ex) bytes([65]) = b'A' 이렇게 나옴 근데 특수 토큰 있으니까 token_id는 69가 됨
         """
-        # token ID 0~3은 특수 토큰이 쓰고 있으니까, byte token ID는 4를 더해서 쓴다.
-        # byte:     [236, 149, 136, 235, 133, 149]
-        # token ID: [240, 153, 140, 239, 137, 153]
+
+        """
+        token ID 0~3은 특수 토큰이 쓰고 있으니까, byte token ID는 4를 더해서 쓴다.
+        byte:     [65, 236, 149, 136, 235, 133, 149]
+        token ID: [69, 240, 153, 140, 239, 137, 153] 이런식으로 4씩 더함
+        print(bytes([65]))              # b'A'
+        print(self.id_to_token[69])     # b'A'
+        print(self.token_to_id[b'A'])   # 69
+        """
 
         # 초기화(방어 장치)
         self.id_to_token = {}
@@ -57,9 +65,9 @@ class BPETokenizer:
             self.id_to_token[token_id] = token
             self.token_to_id[token] = token_id
 
-        for i in range(NUM_BYTES):
-            token_id = BYTE_OFFSET + i
-            token = bytes([i])
+        for b in range(NUM_BYTES):
+            token_id = BYTE_OFFSET + b
+            token = bytes([b])
             self.id_to_token[token_id] = token
             self.token_to_id[token] = token_id
 
