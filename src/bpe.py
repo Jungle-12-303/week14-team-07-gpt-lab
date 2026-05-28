@@ -113,23 +113,51 @@ class BPETokenizer:
         """
         raise NotImplementedError("BPETokenizer.load를 구현하세요.")
 
+    # add_bos_eos: bool = False: 기본값은 False, 필요하면 문장 앞뒤에 <bos>, <eos>를 붙임
+    # -> list[int]: 반환값은 정수 리스트
     def encode(self, text: str, add_bos_eos: bool = False) -> list[int]:
         """
         TODO: 문자열을 token ID 리스트로 변환합니다.
 
         구현 힌트:
-        - 먼저 UTF-8 byte ID 리스트를 만듭니다.
-        - train/load에서 얻은 merge rule을 학습 순서대로 적용합니다.
-        - add_bos_eos=True이면 앞뒤에 bos/eos ID를 붙입니다.
+        - [O] 먼저 UTF-8 byte ID 리스트를 만듭니다.
+        - [ ] train/load에서 얻은 merge rule을 학습 순서대로 적용합니다.
+        - [O] add_bos_eos=True이면 앞뒤에 bos/eos ID를 붙입니다.
         """
-        raise NotImplementedError("BPETokenizer.encode를 구현하세요.")
+        if not self.token_to_id:
+            self._init_special_tokens()
+        byte_values = text.encode("utf-8")
+        ids = []    # 최종 token ID들을 담을 빈 리스트
+
+        for v in byte_values:
+            token = bytes([v])  # self.token_to_id의 key가 bytes 형태니까 다시 bytes 타입으로 바꿈
+            token_id = self.token_to_id[token]  #현재 byte token에 해당하는 ID를 찾기
+            ids.append(token_id)
+
+        # 필요하면 앞뒤에 <bos>,<eos> id 붙임
+        if add_bos_eos == True:
+            ids = [self.get_bos_id()] + ids + [self.get_eos_id()]
+            
+        return ids
 
     def decode(self, ids: list[int], skip_special: bool = True) -> str:
         """
         TODO: token ID 리스트를 문자열로 복원합니다.
-
         주의:
-        - merge token은 원본 byte token까지 재귀적으로 펼칩니다.
-        - byte를 하나씩 decode하지 말고, 마지막에 `bytes(...).decode("utf-8")`를 한 번만 호출합니다.
+        - [ ] merge token은 원본 byte token까지 재귀적으로 펼칩니다.
+        - [O] byte를 하나씩 decode하지 말고, 마지막에 `bytes(...).decode("utf-8")`를 한 번만 호출합니다.
         """
-        raise NotImplementedError("BPETokenizer.decode를 구현하세요.")
+        if not self.id_to_token:
+            self._init_special_tokens()
+        byte_list = []
+
+        for token_id in ids:
+            if skip_special == True and token_id in SPECIAL_IDS.values():
+                continue
+            token = self.id_to_token[token_id]
+            # if type(token) == bytes:
+            if isinstance(token, bytes):    # isinstance(객체, 타입) - 이 객체가 이 타입이 맞냐? (T/F 반환)
+                byte_list.append(token[0])
+            
+        return bytes(byte_list).decode('utf-8')
+        
