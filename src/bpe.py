@@ -8,12 +8,13 @@ UTF-8 byte-level BPE 토크나이저 과제 템플릿.
 """
 
 from pathlib import Path
+import re
 
 
-PAD_TOKEN = "<pad>"
-UNK_TOKEN = "<unk>"
-BOS_TOKEN = "<bos>"
-EOS_TOKEN = "<eos>"
+PAD_TOKEN = "<pad>" # Padding Token 문장 길이 맞추기 위한 패딩
+UNK_TOKEN = "<unk>" # Unknown Token 모르는 단어 대체
+BOS_TOKEN = "<bos>" # Beginning of Sequence 새로운 문장 표식
+EOS_TOKEN = "<eos>" # End of Sequence 문장 끝 표식
 
 SPECIAL_TOKENS = [PAD_TOKEN, UNK_TOKEN, BOS_TOKEN, EOS_TOKEN]
 SPECIAL_IDS = {token: idx for idx, token in enumerate(SPECIAL_TOKENS)}
@@ -39,7 +40,6 @@ class BPETokenizer:
 
     def _init_special_tokens(self):
         """
-        TODO:
         1. 특수 토큰 4개를 고정 ID 0~3에 등록합니다.
         2. byte 0~255를 ID 4~259에 bytes([byte_value]) 형태로 등록합니다.
         """
@@ -102,6 +102,22 @@ class BPETokenizer:
         - train/load에서 얻은 merge rule을 학습 순서대로 적용합니다.
         - add_bos_eos=True이면 앞뒤에 bos/eos ID를 붙입니다.
         """
+        # text = "Fly me to the moon"
+        UTF8_bytes = [token for token in text.encode("utf-8")] # 8byte로 잘라서 배열 저장
+
+        UTF8_byte_ID = []
+        
+        for token in UTF8_bytes:
+            idx = self.token_to_id.get(bytes([token])) # 토큰을 바이트로 전환해서 id 조회
+            UTF8_byte_ID.append(idx)
+
+        
+        if(add_bos_eos == True):
+            UTF8_byte_ID.insert(0, self.get_bos_id())
+            UTF8_byte_ID.append(self.get_eos_id())
+
+        return UTF8_byte_ID
+        
         raise NotImplementedError("BPETokenizer.encode를 구현하세요.")
 
     def decode(self, ids: list[int], skip_special: bool = True) -> str:
