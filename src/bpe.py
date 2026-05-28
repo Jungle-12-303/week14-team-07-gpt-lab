@@ -102,10 +102,18 @@ class BPETokenizer:
         - train/load에서 얻은 merge rule을 학습 순서대로 적용합니다.
         - add_bos_eos=True이면 앞뒤에 bos/eos ID를 붙입니다.
         """
+        text_list = list(bytes(text, "utf-8"))
+        result = []
+        for i in range(len(text_list)):
+            result.append(self.token_to_id[bytes([text_list[i]])])
+
+        # 추후 merge rule 적용 구현
+        if (add_bos_eos):
+            result.insert(0,self.get_bos_id())
+            result.append(self.get_eos_id())
         
-
-        raise NotImplementedError("BPETokenizer.encode를 구현하세요.")
-
+        return result
+        
     def decode(self, ids: list[int], skip_special: bool = True) -> str:
         """
         TODO: token ID 리스트를 문자열로 복원합니다.
