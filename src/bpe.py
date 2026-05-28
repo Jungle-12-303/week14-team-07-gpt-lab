@@ -88,13 +88,13 @@ class BPETokenizer:
         - 새 token ID를 만들고, 시퀀스의 해당 pair를 새 ID로 치환합니다.
         - `self.merges`, `self.id_to_token`, `self.token_to_id`를 갱신합니다.
         """
-         
+        breakpoint()
         byte_corpus = corpus.encode("utf-8")
         word_freq = Counter(byte_corpus.split())
 
         # 초기 vocab: 단어를 UTF-8 byte id tuple로 표현
         # 토큰 타입: tuple[int, ...]
-        # ex: ((65,), (66)): 3
+        # ex: {((65,), (66)): 3, ...}
         words = {
             tuple((w,) for w in word): freq
             for word, freq in word_freq.items()
@@ -104,7 +104,7 @@ class BPETokenizer:
         for word in words:
             vocabulary.update(word)
 
-        while len(vocabulary) < self.vocab_size:
+        while len(self.id_to_token) < self.vocab_size:
             # 빈도수 계산을 위한 토큰 쌍
             pairs = {}
             for k, v in words.items():
@@ -161,17 +161,24 @@ class BPETokenizer:
             vocabulary.add(merged_token)
             words = new_words
 
-        # update token_to_id
-        # and id_to_token
-        idx = len(self.token_to_id)
-        # for k, v in self.merges.items():
-        for k in self.merges:
-            w = self.tutuple_to_bytes(k)
+            idx = len(self.id_to_token)
+            w = self.tutuple_to_bytes(pair)
             self.id_to_token[idx] = w
             self.token_to_id[w] = idx
-            idx += 1
-        print(self.id_to_token)
-        print(self.token_to_id)
+            # idx += 1
+
+        breakpoint()
+        # update token_to_id
+        # and id_to_token
+        # idx = len(self.token_to_id)
+        # # for k, v in self.merges.items():
+        # for k in self.merges:
+        #     w = self.tutuple_to_bytes(k)
+        #     self.id_to_token[idx] = w
+        #     self.token_to_id[w] = idx
+        #     idx += 1
+        # print(self.id_to_token)
+        # print(self.token_to_id)
         # print(self.merges)
         # return words
 
@@ -198,6 +205,15 @@ class BPETokenizer:
         - train/load에서 얻은 merge rule을 학습 순서대로 적용합니다.
         - add_bos_eos=True이면 앞뒤에 bos/eos ID를 붙입니다.
         """
+        bytes_texts = [x.encode('utf-8') for x in text.split()]
+        # 이중 for문: merge rule > word list
+        # merge rule
+        for merge in self.merges:
+            # word list
+            for btext in bytes_texts:
+                # word
+                for b in btext:
+                    pass
         raise NotImplementedError("BPETokenizer.encode를 구현하세요.")
 
     def decode(self, ids: list[int], skip_special: bool = True) -> str:
