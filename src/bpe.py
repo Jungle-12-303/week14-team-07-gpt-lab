@@ -7,6 +7,7 @@ UTF-8 byte-level BPE 토크나이저 과제 템플릿.
 항상 `text.encode("utf-8")`로 byte ID 시퀀스를 만든 뒤 merge를 적용하세요.
 """
 
+from collections import Counter
 from pathlib import Path
 
 
@@ -36,6 +37,7 @@ class BPETokenizer:
         self.id_to_token = {}
         self.token_to_id = {}
         self.merges = []
+        self._init_special_tokens()
 
     def _init_special_tokens(self):
         """
@@ -43,7 +45,19 @@ class BPETokenizer:
         1. 특수 토큰 4개를 고정 ID 0~3에 등록합니다.
         2. byte 0~255를 ID 4~259에 bytes([byte_value]) 형태로 등록합니다.
         """
-        raise NotImplementedError("_init_special_tokens를 구현하세요.")
+        # Initialize id_to_token
+        idx = 0
+        for token in SPECIAL_IDS: 
+            self.id_to_token[idx] = token
+            idx += 1
+        for b in range(0, NUM_BYTES):
+            self.id_to_token[idx] = bytes([b])
+            idx += 1
+        
+        # Initialize token_to_id
+        for k, v in dict.items(self.id_to_token):
+            self.token_to_id[v] = k
+
 
     def get_pad_id(self):
         """padding 토큰 ID."""
@@ -60,6 +74,9 @@ class BPETokenizer:
     def get_eos_id(self):
         """문장 끝 토큰 ID."""
         return SPECIAL_IDS[EOS_TOKEN]
+    
+    def tutuple_to_bytes(self, t: tuple[tuple, ...]) -> bytes:
+        return bytes(b for p in t for b in p)
 
     def train(self, corpus: str):
         """
@@ -71,7 +88,92 @@ class BPETokenizer:
         - 새 token ID를 만들고, 시퀀스의 해당 pair를 새 ID로 치환합니다.
         - `self.merges`, `self.id_to_token`, `self.token_to_id`를 갱신합니다.
         """
-        raise NotImplementedError("BPETokenizer.train을 구현하세요.")
+         
+        byte_corpus = corpus.encode("utf-8")
+        word_freq = Counter(byte_corpus.split())
+
+        # 초기 vocab: 단어를 UTF-8 byte id tuple로 표현
+        # 토큰 타입: tuple[int, ...]
+        # ex: ((65,), (66)): 3
+        words = {
+            tuple((w,) for w in word): freq
+            for word, freq in word_freq.items()
+        }
+
+        vocabulary = set()
+        for word in words:
+            vocabulary.update(word)
+
+        while len(vocabulary) < self.vocab_size:
+            # 빈도수 계산을 위한 토큰 쌍
+            pairs = {}
+            for k, v in words.items():
+                for i in range(len(k)-1):
+                    a, b = k[i], k[i+1]
+                    pair = (a, b)
+                    freq = v
+                    if pair in pairs:
+                        pairs[pair] += freq
+                    else:
+                        pairs[pair] = freq
+
+            if not pairs:
+                break
+
+            pairs = sorted(pairs.items(), key=lambda x: x[1], reverse=True)
+            # pair: 최대 빈도 토큰 쌍: tuple ((65,), (66,))
+            pair = pairs[0][0]
+            merged_token = pair[0] + pair[1]
+
+            # merge
+            new_words = {}
+            for key, value in words.items():
+                old_key = key
+                new_key = []
+                changed = False
+                n = len(key)
+                i = 0
+                while i < n:
+                    if i < n - 1:
+                        comp_tuple = key[i:i+2]
+                        if comp_tuple == pair:
+                            changed = True
+                            new_key.append(merged_token)
+                            i += 1
+                        else:
+                            new_key.append(key[i])
+                    else:
+                        new_key.append(key[i])
+                    i += 1
+                new_key = tuple(new_key)
+                if changed:
+                    if new_key in new_words:
+                        new_words[new_key] += value
+                    else:
+                        new_words[new_key] = value
+                else:
+                    if old_key in new_words:
+                        new_words[old_key] += value
+                    else:
+                        new_words[old_key] = value
+
+            self.merges.append(pair)
+            vocabulary.add(merged_token)
+            words = new_words
+
+        # update token_to_id
+        # and id_to_token
+        idx = len(self.token_to_id)
+        # for k, v in self.merges.items():
+        for k in self.merges:
+            w = self.tutuple_to_bytes(k)
+            self.id_to_token[idx] = w
+            self.token_to_id[w] = idx
+            idx += 1
+        print(self.id_to_token)
+        print(self.token_to_id)
+        # print(self.merges)
+        # return words
 
     def save(self, path: str | Path):
         """
