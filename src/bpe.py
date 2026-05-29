@@ -87,7 +87,19 @@ class BPETokenizer:
         bytes와 tuple은 JSON에 바로 저장할 수 없으므로 type 정보를 함께 저장하세요.
         """
         save_data = {}
+        vocabulary = []
         
+        for id, token in self.id_to_token.items():
+            if (0 <= id and id <=3):
+                vocabulary.append([id, "special", token])
+                
+            if (4<= id <=259):
+                vocabulary.append([id, "byte", token[0]])
+
+            if (id >= 260):
+                vocabulary.append([id, "merge", token])
+            
+        save_data["vocabulary"] = vocabulary        
         save_data["vocab_size"] = self.vocab_size
         save_data["merges"] = self.merges
 
@@ -98,11 +110,31 @@ class BPETokenizer:
         """
         TODO: save()로 저장한 JSON 파일을 읽어 vocabulary와 merge rule을 복원합니다.
         """
-
         with open(path, "r", encoding="utf-8") as f:
-            json.re
+            load_data = json.load(f)
+        
+        self.vocab_size = load_data["vocab_size"]
+      
+        restore_merges = []
 
-        raise NotImplementedError("BPETokenizer.load를 구현하세요.")
+        for left, right in load_data["merges"]:
+            restore_merges.append((left, right))
+      
+        self.merges = restore_merges
+        self.id_to_token = {}
+        self.token_to_id = {}
+
+        for token_id, token_type, token in load_data["vocabulary"]:
+            if (token_type == "byte"):
+                token = bytes([token])
+
+            if (token_type == "merge"):
+                left, right = token
+                token = (left, right)
+
+            self.id_to_token[token_id] = token
+            self.token_to_id[token] = token_id
+
 
     def encode(self, text: str, add_bos_eos: bool = False) -> list[int]:
         """
