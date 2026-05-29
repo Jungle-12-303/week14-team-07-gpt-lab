@@ -68,17 +68,65 @@ class BPETokenizer:
         """문장 끝 토큰 ID."""
         return SPECIAL_IDS[EOS_TOKEN]
 
-    def train(self, corpus: str):
-        """
-        TODO: 코퍼스에서 BPE merge rule과 vocabulary를 학습합니다.
+def train(self, corpus: str):
+    """
+    TODO: 코퍼스에서 BPE merge rule과 vocabulary를 학습합니다.
 
-        구현 힌트:
-        - `corpus.encode("utf-8")`로 byte ID 시퀀스를 만듭니다.
-        - 가장 자주 등장하는 이웃 token pair를 찾습니다.
-        - 새 token ID를 만들고, 시퀀스의 해당 pair를 새 ID로 치환합니다.
-        - `self.merges`, `self.id_to_token`, `self.token_to_id`를 갱신합니다.
-        """
-        raise NotImplementedError("BPETokenizer.train을 구현하세요.")
+    구현 힌트:
+    - `corpus.encode("utf-8")`로 byte ID 시퀀스를 만듭니다.
+    - 가장 자주 등장하는 이웃 token pair를 찾습니다.
+    - 새 token ID를 만들고, 시퀀스의 해당 pair를 새 ID로 치환합니다.
+    - `self.merges`, `self.id_to_token`, `self.token_to_id`를 갱신합니다.
+    """
+    self.id_to_token = {}
+    self.token_to_id = {}
+    self.merges = []
+
+    self._init_special_tokens()
+
+    sequence = [BYTE_OFFSET + b for b in corpus.encode("utf-8")]
+
+    while len(self.id_to_token) < self.vocab_size and len(sequence) >= 2:
+        token_pair_count = {}
+        max_pair_count = 0
+        max_pair = None
+
+        for i in range(len(sequence) - 1):
+            left = sequence[i]
+            right = sequence[i + 1]
+            pair = (left, right)
+
+            if pair in token_pair_count:
+                token_pair_count[pair] += 1
+            else:
+                token_pair_count[pair] = 1
+
+            if token_pair_count[pair] > max_pair_count:
+                max_pair_count = token_pair_count[pair]
+                max_pair = pair
+
+        if max_pair is None:
+            break
+
+        new_id = len(self.id_to_token)
+        if new_id >= self.vocab_size:
+            break
+
+        self.merges.append(max_pair)
+        self.id_to_token[new_id] = max_pair
+        self.token_to_id[max_pair] = new_id
+
+        new_sequence = []
+        i = 0
+        while i < len(sequence):
+            if i + 1 < len(sequence) and (sequence[i], sequence[i + 1]) == max_pair:
+                new_sequence.append(new_id)
+                i += 2
+            else:
+                new_sequence.append(sequence[i])
+                i += 1
+
+        sequence = new_sequence
 
     def save(self, path: str | Path):
         """
