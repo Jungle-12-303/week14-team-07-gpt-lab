@@ -98,6 +98,10 @@ class BPETokenizer:
         """
         TODO: save()로 저장한 JSON 파일을 읽어 vocabulary와 merge rule을 복원합니다.
         """
+
+        with open(path, "r", encoding="utf-8") as f:
+            json.re
+
         raise NotImplementedError("BPETokenizer.load를 구현하세요.")
 
     def encode(self, text: str, add_bos_eos: bool = False) -> list[int]:
