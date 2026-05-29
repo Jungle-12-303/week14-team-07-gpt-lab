@@ -8,6 +8,7 @@ UTF-8 byte-level BPE 토크나이저 과제 템플릿.
 """
 
 from pathlib import Path
+import json
 
 
 PAD_TOKEN = "<pad>" # 빈칸 채우기용(padding)
@@ -87,6 +88,7 @@ class BPETokenizer:
         """문장 끝 토큰 ID."""
         return SPECIAL_IDS[EOS_TOKEN]
 
+    # tokenizer 규칙을 만든다
     def train(self, corpus: str):
         """
         TODO: 코퍼스에서 BPE merge rule과 vocabulary를 학습합니다.  vocab = tokeizer가 사용하는 토큰 사전
@@ -137,19 +139,74 @@ class BPETokenizer:
 
             ids = new_ids
 
+    # 만든 규칙을 파일로 저장한다
     def save(self, path: str | Path):
         """
         TODO: vocabulary와 merge rule을 JSON 파일로 저장합니다.
 
         bytes와 tuple은 JSON에 바로 저장할 수 없으므로 type 정보를 함께 저장하세요.
         """
-        raise NotImplementedError("BPETokenizer.save를 구현하세요.")
+        serialized_vocab = []
 
+        # JSON은 bytes와 tuple을 그대로 몰라서 타입도 같이 저장함
+        for token_id, token in self.id_to_token.items():
+            if isinstance(token, str):
+                token_data = {"type": "str", "value": token}
+            elif isinstance(token, bytes):
+                token_data = {"type": "bytes", "value": list(token)}
+            elif isinstance(token, tuple):
+                token_data = {"type": "tuple", "value": list(token)}
+            else:
+                raise TypeError(f"Unsupported token type: {type(token)}")
+
+            serialized_vocab.append({
+                "id": token_id,
+                "token": token_data,
+            })
+
+        data = {
+            "vocab_size": self.vocab_size,
+            "id_to_token": serialized_vocab,
+            "merges": [list(pair) for pair in self.merges],
+        }
+
+        path = Path(path)
+        with path.open("w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    # 저장된 규칙을 다시 메모리로 복원한다
     def load(self, path: str | Path):
         """
         TODO: save()로 저장한 JSON 파일을 읽어 vocabulary와 merge rule을 복원합니다.
         """
-        raise NotImplementedError("BPETokenizer.load를 구현하세요.")
+        path = Path(path)
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        self.vocab_size = data["vocab_size"]
+        self.id_to_token = {}
+        self.token_to_id = {}
+
+        for item in data["id_to_token"]:
+            token_id = int(item["id"])
+            token_data = item["token"]
+            token_type = token_data["type"]
+            value = token_data["value"]
+
+            if token_type == "str":
+                token = value
+            elif token_type == "bytes":
+                token = bytes(value)
+            elif token_type == "tuple":
+                token = tuple(value)
+            else:
+                raise ValueError(f"Unsupported token type: {token_type}")
+
+            self.id_to_token[token_id] = token
+            self.token_to_id[token] = token_id
+
+        # JSON에서는 튜플이 리스트로 저장되기 때문에 다시 튜플로 저장
+        self.merges = [tuple(pair) for pair in data["merges"]]
 
     # add_bos_eos: bool = False: 기본값은 False, 필요하면 문장 앞뒤에 <bos>, <eos>를 붙임
     # -> list[int]: 반환값은 정수 리스트
@@ -201,7 +258,7 @@ class BPETokenizer:
         """
         TODO: token ID 리스트를 문자열로 복원합니다.
         주의:
-        - [ ] merge token은 원본 byte token까지 재귀적으로 펼칩니다.
+        - [O] merge token은 원본 byte token까지 재귀적으로 펼칩니다.
         - [O] byte를 하나씩 decode하지 말고, 마지막에 `bytes(...).decode("utf-8")`를 한 번만 호출합니다.
         """
         if not self.id_to_token:
