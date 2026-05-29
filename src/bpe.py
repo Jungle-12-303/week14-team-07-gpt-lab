@@ -171,6 +171,25 @@ class BPETokenizer:
             token = bytes([v])  # self.token_to_id의 key가 bytes 형태니까 다시 bytes 타입으로 바꿈
             token_id = self.token_to_id[token]  #현재 byte token에 해당하는 ID를 찾기
             ids.append(token_id)
+        
+        # merge 규칙을 학습 순서대로 하나씩 적용
+        for pair in self.merges:
+            if pair not in self.token_to_id:
+                continue
+
+            new_id = self.token_to_id[pair]
+            new_ids = []
+            i = 0
+
+            while i < len(ids):
+                if i < len(ids) - 1 and (ids[i], ids[i + 1]) == pair:
+                    new_ids.append(new_id)
+                    i += 2
+                else:
+                    new_ids.append(ids[i])
+                    i += 1
+
+            ids = new_ids
 
         # 필요하면 앞뒤에 <bos>,<eos> id 붙임
         if add_bos_eos == True:
@@ -187,6 +206,20 @@ class BPETokenizer:
         """
         if not self.id_to_token:
             self._init_special_tokens()
+
+        # 튜플 형태로 받은 token ID를 펼쳐서 최종 byte 숫자 리스트로 만들기
+        def expand_token(token_id: int) -> list[int]:
+            token = self.id_to_token[token_id]
+
+            if isinstance(token, bytes):
+                return [token[0]]
+
+            if isinstance(token, tuple):
+                left_id, right_id = token
+                return expand_token(left_id) + expand_token(right_id)
+
+            return []
+    
         byte_list = []
 
         for token_id in ids:
