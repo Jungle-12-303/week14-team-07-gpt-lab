@@ -7,6 +7,7 @@ UTF-8 byte-level BPE 토크나이저 과제 템플릿.
 항상 `text.encode("utf-8")`로 byte ID 시퀀스를 만든 뒤 merge를 적용하세요.
 """
 
+import json
 from pathlib import Path
 
 
@@ -85,7 +86,13 @@ class BPETokenizer:
 
         bytes와 tuple은 JSON에 바로 저장할 수 없으므로 type 정보를 함께 저장하세요.
         """
-        raise NotImplementedError("BPETokenizer.save를 구현하세요.")
+        save_data = {}
+        
+        save_data["vocab_size"] = self.vocab_size
+        save_data["merges"] = self.merges
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(save_data, f)
 
     def load(self, path: str | Path):
         """
