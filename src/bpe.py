@@ -198,7 +198,26 @@ def train(self, corpus: str):
         for i in range(len(text_list)):
             result.append(self.token_to_id[bytes([text_list[i]])])
 
-        # 추후 merge rule 적용 구현
+
+        current_sequence = result
+
+        for pair in self.merges:
+            new_id = self.token_to_id[pair]
+            merged_sequence = []
+            i = 0
+
+            while i < len(current_sequence):
+                if i + 1 < len(current_sequence) and (current_sequence[i], current_sequence[i + 1]) == pair:
+                    merged_sequence.append(new_id)
+                    i += 2
+                else:
+                    merged_sequence.append(current_sequence[i])
+                    i += 1
+
+            current_sequence = merged_sequence
+
+        result = current_sequence
+
         if (add_bos_eos):
             result.insert(0,self.get_bos_id())
             result.append(self.get_eos_id())
@@ -213,19 +232,27 @@ def train(self, corpus: str):
         - merge token은 원본 byte token까지 재귀적으로 펼칩니다.
         - byte를 하나씩 decode하지 말고, 마지막에 `bytes(...).decode("utf-8")`를 한 번만 호출합니다.
         """
+        def expand_to_bytes(token_id: int) -> list[int]:
+            token = self.id_to_token[token_id]
+
+            if isinstance(token, bytes):
+                return [token[0]]
+
+            if isinstance(token, tuple):
+                left, right = token
+                return expand_to_bytes(left) + expand_to_bytes(right)
+
+            if isinstance(token, str):
+                return list(token.encode("utf-8"))
+
+            return []
+
         byte_list = []
 
         for token_id in ids:
-            if (0 <= token_id and token_id <=3 and skip_special == True):
+            if 0 <= token_id <= 3 and skip_special:
                 continue
-                
-            # if (token_id >= 260):
-            #     for i in range(len(self.merges)):
-            #         # 추후 merge rule 적용 구현
-            #         pass
-            
-            if (4 <= token_id <= 259):
-                byte_list.append(token_id-4)
-            
+
+            byte_list.extend(expand_to_bytes(token_id))
+
         return bytes(byte_list).decode("utf-8")
-            
