@@ -24,11 +24,12 @@ class InputEmbedding(nn.Module):
         drop_rate: float = 0.1,
     ):
         super().__init__()
+        # nn.Embedding: 학습 가능한 lookup table
         self.emb_dim = emb_dim
         self.context_length = context_length
-        self.token_embedding = nn.Embedding(vocab_size, emb_dim)
+        self.token_embedding = nn.Embedding(vocab_size, emb_dim) # 랜덤 vocab_size, emb_dim matrix 생성, 학습 가능한 파라미터
         self.position_embedding = nn.Embedding(context_length, emb_dim)
-        self.dropout = nn.Dropout(drop_rate)
+        self.dropout = nn.Dropout(drop_rate) # dropout network layer
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -40,7 +41,7 @@ class InputEmbedding(nn.Module):
         Returns:
             (batch_size, seq_len, emb_dim)
         """
-        seq_len = x.size(1)
-        positions = torch.arange(seq_len, device=x.device)
-        x = self.token_embedding(x) + self.position_embedding(positions)
+        seq_len = x.size(1) # x의 1번 차원의 길이 == seq_len
+        positions = torch.arange(seq_len, device=x.device) # device = CPU / GPU. x와 position이 다른 연산장치에 있으면 서로에 대한 연산 불가
+        x = self.token_embedding(x) + self.position_embedding(positions) # lookup
         return self.dropout(x)
