@@ -74,9 +74,18 @@ class BPETokenizer:
         구현 힌트:
         - `corpus.encode("utf-8")`로 byte ID 시퀀스를 만듭니다.
         - 가장 자주 등장하는 이웃 token pair를 찾습니다.
-        - 새 token ID를 만들고, 시퀀스의 해당 pair를 새 ID로 치환합니다.
-        - `self.merges`, `self.id_to_token`, `self.token_to_id`를 갱신합니다.
+        - 새 token ID를 만들고, 시퀀스의 해당 pair를 새 ID로 치환합니다. => 머지 룰..
+        - `self.merges` => 튜플 한 쌍을 등록, `self.id_to_token`, `self.token_to_id`를 갱신합니다.
         """
+        UTF8_bytes = [token for token in corpus.encode("utf-8")] # 8byte로 잘라서 배열 저장
+
+        UTF8_byte_ID = []
+        for token in UTF8_bytes:
+            idx = self.token_to_id.get(bytes([token])) # 토큰을 바이트로 전환해서 id 조회
+            UTF8_byte_ID.append(idx)
+
+
+
         raise NotImplementedError("BPETokenizer.train을 구현하세요.")
 
     def save(self, path: str | Path):
@@ -95,7 +104,7 @@ class BPETokenizer:
 
     def encode(self, text: str, add_bos_eos: bool = False) -> list[int]:
         """
-        TODO: 문자열을 token ID 리스트로 변환합니다.
+        문자열을 token ID 리스트로 변환합니다.
 
         구현 힌트:
         - 먼저 UTF-8 byte ID 리스트를 만듭니다.
@@ -111,8 +120,35 @@ class BPETokenizer:
             idx = self.token_to_id.get(bytes([token])) # 토큰을 바이트로 전환해서 id 조회
             UTF8_byte_ID.append(idx)
 
-        
-        if(add_bos_eos == True):
+        # merges 안에는 튜플 형태의 pair 목록이 있음.
+        # [(a, b), (c, d), (e, f), ... ]
+        for left_id, right_id in self.merges:
+            temp_merge = []
+            i = 0
+            while(i < len(UTF8_byte_ID)-1):
+                temp_left = UTF8_byte_ID[i]
+                temp_right = UTF8_byte_ID[i+1]
+
+                if(temp_left == left_id and temp_right == right_id):
+                    merge_id = self.token_to_id.get((left_id, right_id))
+                    
+                    if(merge_id == None):
+                        raise ValueError("merge_id가 None...")
+                    temp_merge.append(merge_id)
+
+                    i += 2 # 두 칸 소비함
+                else:
+                    temp_merge.append(UTF8_byte_ID[i])
+
+                    i += 1
+            
+            if(i == len(UTF8_byte_ID)-1): # UTF8_byte_ID의 요소가 1개거나, 마지막 요소가 남았을 때
+                temp_merge.append(UTF8_byte_ID[-1])
+
+            UTF8_byte_ID = temp_merge
+
+
+        if(add_bos_eos == True): # 문장 처음/끝 표식 붙이기
             UTF8_byte_ID.insert(0, self.get_bos_id())
             UTF8_byte_ID.append(self.get_eos_id())
 
