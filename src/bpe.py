@@ -89,15 +89,53 @@ class BPETokenizer:
 
     def train(self, corpus: str):
         """
-        TODO: 코퍼스에서 BPE merge rule과 vocabulary를 학습합니다.
+        TODO: 코퍼스에서 BPE merge rule과 vocabulary를 학습합니다.  vocab = tokeizer가 사용하는 토큰 사전
 
         구현 힌트:
-        - `corpus.encode("utf-8")`로 byte ID 시퀀스를 만듭니다.
+        - `corpus.encode("utf-8")`로 byte ID 시퀀스를 만듭니다. corpus = 학습용 텍스트 데이터 전체
         - 가장 자주 등장하는 이웃 token pair를 찾습니다.
         - 새 token ID를 만들고, 시퀀스의 해당 pair를 새 ID로 치환합니다.
         - `self.merges`, `self.id_to_token`, `self.token_to_id`를 갱신합니다.
         """
-        raise NotImplementedError("BPETokenizer.train을 구현하세요.")
+        self._init_special_tokens()
+
+        ids = []
+        # corpus를 byte token ID 리스트로 바꾸기
+        for byte_value in corpus.encode("utf-8"):
+            token = bytes([byte_value])
+            token_id = self.token_to_id[token]
+            ids.append(token_id)
+
+        # vocab 크기가 목표치에 도달할 때까지 반복
+        while len(self.id_to_token) < self.vocab_size:
+            pair_counts = {}    # 예) (69, 70): 2
+
+            for i in range(len(ids) - 1):
+                pair = (ids[i], ids[i + 1])
+                pair_counts[pair] = pair_counts.get(pair, 0) + 1
+
+            if not pair_counts:
+                break
+
+            best_pair = max(pair_counts, key=pair_counts.get)
+
+            new_id = len(self.id_to_token)
+            self.id_to_token[new_id] = best_pair
+            self.token_to_id[best_pair] = new_id
+            self.merges.append(best_pair)
+
+            # 기존 ids 안에서 best_pair 두 개를 새 token ID로 바꿈
+            new_ids = []
+            i = 0
+            while i < len(ids):
+                if i < len(ids) - 1 and (ids[i], ids[i + 1]) == best_pair:
+                    new_ids.append(new_id)
+                    i += 2
+                else:
+                    new_ids.append(ids[i])
+                    i += 1
+
+            ids = new_ids
 
     def save(self, path: str | Path):
         """
