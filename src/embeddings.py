@@ -33,7 +33,7 @@ class InputEmbedding(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        TODO: token embedding과 position embedding을 더한 뒤 dropout을 적용합니다.
+        token embedding과 position embedding을 더한 뒤 dropout을 적용합니다.
 
         Args:
             x: (batch_size, seq_len) token IDs

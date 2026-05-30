@@ -42,7 +42,6 @@ class BPETokenizer:
 
     def _init_special_tokens(self):
         """
-        TODO:
         1. 특수 토큰 4개를 고정 ID 0~3에 등록합니다.
         2. byte 0~255를 ID 4~259에 bytes([byte_value]) 형태로 등록합니다.
         """
@@ -78,7 +77,7 @@ class BPETokenizer:
     
     def train(self, corpus: str):
         """
-        TODO: 코퍼스에서 BPE merge rule과 vocabulary를 학습합니다.
+        코퍼스에서 BPE merge rule과 vocabulary를 학습합니다.
 
         구현 힌트:
         - `corpus.encode("utf-8")`로 byte ID 시퀀스를 만듭니다.
@@ -151,7 +150,7 @@ class BPETokenizer:
 
     def save(self, path: str | Path):
         """
-        TODO: vocabulary와 merge rule을 JSON 파일로 저장합니다.
+        vocabulary와 merge rule을 JSON 파일로 저장합니다.
 
         bytes와 tuple은 JSON에 바로 저장할 수 없으므로 type 정보를 함께 저장하세요.
         """
@@ -172,7 +171,7 @@ class BPETokenizer:
 
     def load(self, path: str | Path):
         """
-        TODO: save()로 저장한 JSON 파일을 읽어 vocabulary와 merge rule을 복원합니다.
+        save()로 저장한 JSON 파일을 읽어 vocabulary와 merge rule을 복원합니다.
         """
         with open(path, "r", encoding='utf-8') as f:
             data = json.load(f)
@@ -198,7 +197,7 @@ class BPETokenizer:
 
     def encode(self, text: str, add_bos_eos: bool = False) -> list[int]:
         """
-        TODO: 문자열을 token ID 리스트로 변환합니다.
+        문자열을 token ID 리스트로 변환합니다.
 
         구현 힌트:
         - 먼저 UTF-8 byte ID 리스트를 만듭니다.
@@ -227,7 +226,7 @@ class BPETokenizer:
 
     def decode(self, ids: list[int], skip_special: bool = True) -> str:
         """
-        TODO: token ID 리스트를 문자열로 복원합니다.
+        token ID 리스트를 문자열로 복원합니다.
 
         주의:
         - merge token은 원본 byte token까지 재귀적으로 펼칩니다.
