@@ -70,6 +70,13 @@ class MultiHeadAttention(nn.Module):
         v = v.transpose(1, 2)
 
         attn_scores = q @ k.transpose(-2, -1) # t.transpose(-2, -1) == t.transpose(2, 3) # 마지막 두 차원을 사용한다는 의미이다.
+        # '@'는 마지막 두 차원에 대해 행렬곱한다. 앞 차원들은 batch 차원으로 자동 정리
+        """
+        즉, 실제 의미는:
+        for b in range(B):
+            for h in range(H):
+                result[b, h] = q[b, h] @ k_t[b, h]
+        """
 
         # masking
         if causal_mask:
