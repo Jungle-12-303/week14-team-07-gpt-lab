@@ -23,8 +23,8 @@ class GPTDataset(Dataset):
         self.token_ids = token_ids
         self.context_length = context_length
         self.stride = stride if stride is not None else context_length
-        # TODO: 만들 수 있는 학습 샘플 개수를 self._length에 저장하세요.
-        raise NotImplementedError("GPTDataset.__init__에서 self._length를 구현하세요.")
+        # TODO: 만들 수 있는 학습 샘플 개수를 self._length에 저장하세요.    
+        self._length = (len(token_ids) - context_length - 1)// self.stride +1
 
     def __len__(self) -> int:
         """TODO: 전체 샘플 개수를 반환합니다."""
