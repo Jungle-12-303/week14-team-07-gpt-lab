@@ -27,11 +27,19 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         if d_model % n_heads != 0:
             raise ValueError("d_model must be divisible by n_heads")
-        self.d_model = d_model
-        self.n_heads = n_heads
+        self.d_model = d_model # embedding dimension
+        self.n_heads = n_heads # number of heads
         self.head_dim = d_model // n_heads
-        # TODO: qkv projection, output projection, dropout을 정의하세요.
-        raise NotImplementedError("MultiHeadAttention.__init__을 구현하세요.")
+        # qkv projection, output projection, dropout을 정의하세요.
+        self.q_projection: nn.Linear = nn.Linear(self.d_model, self.d_model, bias=qkv_bias)
+        self.k_projection: nn.Linear = nn.Linear(self.d_model, self.d_model, bias=qkv_bias)
+        self.v_projection: nn.Linear = nn.Linear(self.d_model, self.d_model, bias=qkv_bias)
+        self.out_projection = nn.Linear(self.d_model, self.d_model)
+        self.dropout = nn.Dropout(drop_rate)
+        # self.register_buffer(
+        #     "mask",
+        #     torch.triu(torch.ones(d_model, d_model), diagonal=1)
+        # )
 
     def forward(
         self,
@@ -40,11 +48,47 @@ class MultiHeadAttention(nn.Module):
         return_attention_weights: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
-        TODO: multi-head attention forward를 구현합니다.
+        multi-head attention forward를 구현합니다.
 
         Args:
             x: (batch_size, seq_len, d_model)
             causal_mask: True이면 미래 위치를 볼 수 없게 mask 처리
             return_attention_weights: True이면 attention weight도 함께 반환
         """
-        raise NotImplementedError("MultiHeadAttention.forward를 구현하세요.")
+        batch_size, seq_len, d_model = x.shape
+        q: torch.Tensor = self.q_projection(x)
+        k: torch.Tensor = self.k_projection(x)
+        v: torch.Tensor = self.v_projection(x)
+
+        k = k.view(batch_size, seq_len, self.n_heads, self.head_dim)
+        v = v.view(batch_size, seq_len, self.n_heads, self.head_dim)
+        q = q.view(batch_size, seq_len, self.n_heads, self.head_dim)
+
+        # (batch_size, seq_len, self.n_heads, self.head_dim) -> (batch_size, self.n_heads, seq_len, self.head_dim)
+        k = k.transpose(1, 2)
+        q = q.transpose(1, 2)
+        v = v.transpose(1, 2)
+
+        attn_scores = q @ k.transpose(-2, -1) # t.transpose(-2, -1) == t.transpose(2, 3) # 마지막 두 차원을 사용한다는 의미이다.
+
+        # masking
+        if causal_mask:
+            mask_bool = torch.triu(torch.ones(seq_len, seq_len, device=x.device), diagonal=1).bool()
+            attn_scores.masked_fill_(mask_bool, -torch.inf) # inplace function. use masked_fill(...) for non-inplace.
+        
+        # softmax with scaling
+        attn_weights = torch.softmax(
+            attn_scores / k.shape[-1]**0.5, dim=-1)
+        attn_weights = self.dropout(attn_weights)
+
+        # 문맥벡터 만들기.
+        context_vec = (attn_weights @ v).transpose(1, 2)        
+
+        context_vec = context_vec.contiguous().view(
+            batch_size, seq_len, d_model
+        )
+        context_vec = self.out_projection(context_vec)
+        if return_attention_weights:
+            return context_vec, attn_weights
+        else:
+            return context_vec
