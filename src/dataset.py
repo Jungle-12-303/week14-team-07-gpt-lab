@@ -28,8 +28,8 @@ class GPTDataset(Dataset):
 
     def __len__(self) -> int:
         """TODO: 전체 샘플 개수를 반환합니다."""
-        raise NotImplementedError("GPTDataset.__len__을 구현하세요.")
-
+        return self._length
+    
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         """
         TODO: idx번째 input_ids와 target_ids를 LongTensor로 반환합니다.
@@ -38,6 +38,15 @@ class GPTDataset(Dataset):
             input_ids: (context_length,)
             target_ids: (context_length,)
         """
+        start = idx * self.stride
+        end = start + self.context_length
+
+        input_ids = self.token_ids[start : end]
+        target_ids = self.token_ids[start + 1 : end + 1]
+
+        input_ids = torch.tensor(input_ids, dtype=torch.long)
+        target_ids = torch.tensor(target_ids, dtype=torch.long)
+
         raise NotImplementedError("GPTDataset.__getitem__을 구현하세요.")
 
 
