@@ -23,6 +23,20 @@ class GPTDataset(Dataset):
             raise ValueError("stride must be positive")
         available = len(token_ids) - context_length - 1
         self._length = 0 if available < 0 else available // self.stride + 1
+        
+        #안녕하세요_밥은_먹었나요?
+        # 1 input : 안녕하 context_length = 3
+        # 1 output : 녕하세
+        # (input, output)
+        # ([안, 녕, 하]], [녕, 하, 세]) size 1
+        # ([[안, 녕, 하],[녕, 하, 세]]], [[녕, 하, 세], [하, 세, 요]]) size 2
+        # 2 input : 녕하세 stride = 1 
+        # 2 input : 세요_ stride = 3
+
+        #안녕하 세요_ 밥은_ 먹었나 요?
+        # 14 // 3 = 4
+        # 14 - 4(context_length - 1) = 10 
+
 
     def __len__(self) -> int:
         """전체 샘플 개수를 반환합니다."""
