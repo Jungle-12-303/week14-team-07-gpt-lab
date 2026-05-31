@@ -27,11 +27,15 @@ class InputEmbedding(nn.Module):
         self.emb_dim = emb_dim
         self.context_length = context_length
         # TODO: token_embedding, position_embedding, dropout을 정의하세요.
-        raise NotImplementedError("InputEmbedding.__init__을 구현하세요.")
 
+        self.token_embedding = nn.Embedding(vocab_size, emb_dim)
+        self.position_embedding = nn.Embedding(context_length, emb_dim)
+        self.dropout = nn.Dropout(drop_rate)
+
+    # 입력으로 들어온 토큰 ID들에 대해 토큰 임베딩 + 위치 임베딩을 합쳐서, 트랜스포머가 먹을 수 있는 연속 벡터로 바꾸는 함수
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        TODO: token embedding과 position embedding을 더한 뒤 dropout을 적용합니다.
+         token embedding과 position embedding을 더한 뒤 dropout을 적용합니다.
 
         Args:
             x: (batch_size, seq_len) token IDs
@@ -39,4 +43,16 @@ class InputEmbedding(nn.Module):
         Returns:
             (batch_size, seq_len, emb_dim)
         """
-        raise NotImplementedError("InputEmbedding.forward를 구현하세요.")
+        if x.ndim != 2: # 잘못된 형식
+            raise ValueError("token_ids must have shape (batch_size, seq_len)")
+        _, seq_len = x.shape
+
+        if seq_len > self.context_length:
+            raise ValueError(f"seq_len ({seq_len}) must be less than or equal to context_length ({self.context_length})"
+        )
+        
+        token_embedding = self.token_embedding(x)
+        positions = torch.arange(seq_len, device=x.device)
+        position_embedding = self.position_embedding(positions)
+
+        return self.dropout(token_embedding + position_embedding)
