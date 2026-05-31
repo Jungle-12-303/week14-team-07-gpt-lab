@@ -8,6 +8,7 @@ UTF-8 byte-level BPE 토크나이저 과제 템플릿.
 """
 
 from pathlib import Path
+import json
 import re
 
 
@@ -33,23 +34,23 @@ class BPETokenizer:
     """
 
     def __init__(self, vocab_size: int = 3000):
+        #raise NotImplementedError("에러 메시지를 작성해주세요")
         self.vocab_size = vocab_size
-        self.id_to_token = {}
-        self.token_to_id = {}
-        self.merges = []
+        self._init_special_tokens()
 
     def _init_special_tokens(self):
         """
         1. 특수 토큰 4개를 고정 ID 0~3에 등록합니다.
         2. byte 0~255를 ID 4~259에 bytes([byte_value]) 형태로 등록합니다.
         """
+        self.id_to_token = {}
+        self.token_to_id = {}
+        self.merges = []
 
         self.token_to_id.update(SPECIAL_IDS)
-        self.token_to_id.update({bytes([byte_value]) : BYTE_OFFSET+byte_value for byte_value in range(0, NUM_BYTES)})
+        self.token_to_id.update({bytes([byte_value]) : BYTE_OFFSET + byte_value for byte_value in range(0, NUM_BYTES)})
 
         self.id_to_token.update({idx : token for token, idx in self.token_to_id.items()})
-
-        # raise NotImplementedError("_init_special_tokens를 구현하세요.")
 
     def get_pad_id(self):
         """padding 토큰 ID."""
@@ -69,7 +70,7 @@ class BPETokenizer:
 
     def train(self, corpus: str):
         """
-        TODO: 코퍼스에서 BPE merge rule과 vocabulary를 학습합니다.
+        코퍼스에서 BPE merge rule과 vocabulary를 학습합니다.
 
         구현 힌트:
         - `corpus.encode("utf-8")`로 byte ID 시퀀스를 만듭니다.
@@ -77,30 +78,125 @@ class BPETokenizer:
         - 새 token ID를 만들고, 시퀀스의 해당 pair를 새 ID로 치환합니다. => 머지 룰..
         - `self.merges` => 튜플 한 쌍을 등록, `self.id_to_token`, `self.token_to_id`를 갱신합니다.
         """
-        UTF8_bytes = [token for token in corpus.encode("utf-8")] # 8byte로 잘라서 배열 저장
 
-        UTF8_byte_ID = []
-        for token in UTF8_bytes:
-            idx = self.token_to_id.get(bytes([token])) # 토큰을 바이트로 전환해서 id 조회
-            UTF8_byte_ID.append(idx)
+        self._init_special_tokens()
+        
+        token_ids = [BYTE_OFFSET + token for token in corpus.encode("utf-8")] # 8byte로 잘라서 배열 저장
+
+        #--------------------------------
+        def get_most_frequent_pair(token_ids: list[int]) -> tuple[int, int] | None:
+
+            if len(token_ids) < 2:
+                return None
+
+            count_voc = {}
+            # 전체를 순회한다.
+            i = 0
+            while(i < len(token_ids)-1):
+                # 앞, 뒤를 무조건 한 쌍으로 간주하고 시작
+                # 빈도를 카운트
+                pair = (token_ids[i], token_ids[i+1])
+                count_voc.update({pair : count_voc.get(pair,0)+1})
+
+                i += 1
+            
+            return max(count_voc, key=lambda x: count_voc[x])
+        
+        def replace_pair(token_ids: list[int], pair: tuple[int, int]) -> list[int]:
+            # 바꿔야 하는 위치를 찾아서 거기에 새 아이디를 넣어줘야 함.
+            # 새 리스트... 점프하면 됨..
+            temp_merge = []
+            i = 0
+            while(i < len(token_ids)-1):
+                temp_left = token_ids[i]
+                temp_right = token_ids[i+1]
+
+                if(temp_left == pair[0] and temp_right == pair[1]):
+                    merge_id = self.token_to_id.get((pair[0], pair[1]))
+                    
+                    if(merge_id == None):
+                        raise ValueError("merge_id가 None...")
+                    temp_merge.append(merge_id)
+
+                    i += 2 # 두 칸 소비함
+                else:
+                    temp_merge.append(token_ids[i])
+
+                    i += 1
+            
+            if(i == len(token_ids)-1): # bytes의 요소가 1개거나, 마지막 요소가 남았을 때
+                temp_merge.append(token_ids[-1])
+
+            return temp_merge
+    
+
+        #--------------------------------
+
+        while(len(self.id_to_token) < self.vocab_size):
+            pair = get_most_frequent_pair(token_ids) # tuple[int,int]
+            if(pair is None):
+                break
+
+            new_token_id = len(self.id_to_token)
+            
+            self.token_to_id.update({pair : new_token_id})
+            self.id_to_token.update({new_token_id : pair})
+            self.merges.append(pair)
+            token_ids = replace_pair(token_ids, pair)
 
 
-
-        raise NotImplementedError("BPETokenizer.train을 구현하세요.")
 
     def save(self, path: str | Path):
         """
-        TODO: vocabulary와 merge rule을 JSON 파일로 저장합니다.
+        vocabulary와 merge rule을 JSON 파일로 저장합니다.
 
         bytes와 tuple은 JSON에 바로 저장할 수 없으므로 type 정보를 함께 저장하세요.
         """
-        raise NotImplementedError("BPETokenizer.save를 구현하세요.")
+        def serialize_token(token):
+            if isinstance(token, bytes):
+                return {"type": "bytes", "value": list(token)}
+            if isinstance(token, tuple):
+                return {"type": "tuple", "value": list(token)}
+            return {"type": "str", "value": token}
+
+        data = {
+            "vocab_size": self.vocab_size,
+            "merges": [list(pair) for pair in self.merges],
+            "id_to_token": {
+                str(token_id): serialize_token(token)
+                for token_id, token in self.id_to_token.items()
+            },
+        }
+
+        with open(path, "w", encoding="utf-8") as file:
+            json.dump(data, file, ensure_ascii=False, indent=2)
 
     def load(self, path: str | Path):
         """
-        TODO: save()로 저장한 JSON 파일을 읽어 vocabulary와 merge rule을 복원합니다.
+        save()로 저장한 JSON 파일을 읽어 vocabulary와 merge rule을 복원합니다.
         """
-        raise NotImplementedError("BPETokenizer.load를 구현하세요.")
+        def deserialize_token(token_data):
+            token_type = token_data["type"]
+            token_value = token_data["value"]
+
+            if token_type == "bytes":
+                return bytes(token_value)
+            if token_type == "tuple":
+                return tuple(token_value)
+            return token_value
+
+        with open(path, "r", encoding="utf-8") as file:
+            data = json.load(file)
+
+        self.vocab_size = data.get("vocab_size", self.vocab_size)
+        self.id_to_token = {
+            int(token_id): deserialize_token(token_data)
+            for token_id, token_data in data["id_to_token"].items()
+        }
+        self.token_to_id = {
+            token: token_id for token_id, token in self.id_to_token.items()
+        }
+        self.merges = [tuple(pair) for pair in data["merges"]]
 
     def encode(self, text: str, add_bos_eos: bool = False) -> list[int]:
         """
@@ -154,14 +250,62 @@ class BPETokenizer:
 
         return UTF8_byte_ID
         
-        raise NotImplementedError("BPETokenizer.encode를 구현하세요.")
 
     def decode(self, ids: list[int], skip_special: bool = True) -> str:
         """
-        TODO: token ID 리스트를 문자열로 복원합니다.
+        token ID 리스트를 문자열로 복원합니다.
 
         주의:
         - merge token은 원본 byte token까지 재귀적으로 펼칩니다.
         - byte를 하나씩 decode하지 말고, 마지막에 `bytes(...).decode("utf-8")`를 한 번만 호출합니다.
         """
-        raise NotImplementedError("BPETokenizer.decode를 구현하세요.")
+
+        #--------------------------------
+
+        byte_valuse: list[int] = []
+        text_pieces: list[str] = []
+
+        # str로 진짜 디코딩
+        def flush_bytes() -> None:
+            text_pieces.append(bytes(byte_valuse).decode("utf-8", errors="replace"))
+            byte_valuse.clear()
+        
+        # 재귀적으로 아이디를 토큰으로 변환
+        def expand_to_bytes(token_id:int) -> list[int]:
+            token = self.id_to_token[token_id]
+            if isinstance(token, bytes):
+                return list(token)
+            if isinstance(token, tuple):
+                return expand_to_bytes(token[0]) + expand_to_bytes(token[1]) 
+            
+            raise ValueError("fail..")
+
+
+        #--------------------------------
+
+        # 여기서 할꺼임
+
+        # id리스트만큼 반복...
+
+        # (65, 64) = 260
+        # (32, 12) = 261
+        # (260, 261) = 234
+
+        for id in ids:
+            token = self.id_to_token.get(int(id))
+            if token is None:
+                if skip_special == False:
+                    flush_bytes()
+                    text_pieces.append(UNK_TOKEN)
+                continue
+
+            if isinstance(token, str):
+                if (skip_special == False) and (token in SPECIAL_TOKENS):
+                    flush_bytes()
+                    text_pieces.append(token)
+                continue
+
+            byte_valuse.extend(expand_to_bytes(int(id)))
+
+        flush_bytes()
+        return "".join(text_pieces)
