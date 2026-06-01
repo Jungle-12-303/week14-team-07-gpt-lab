@@ -145,18 +145,18 @@ class GPTModel(nn.Module):
 
 def generate_text_simple(
     model: GPTModel,
-    idx: torch.Tensor,
+    idx: torch.Tensor,  # (batch_size, start_len = seq_len)
     max_new_tokens: int,
     context_size: int,
 ) -> torch.Tensor:
     """greedy 방식으로 max_new_tokens만큼 다음 토큰을 이어 붙입니다."""
     for _ in range(max_new_tokens):
-        idx_cond = idx[:, -context_size:]
-        with torch.no_grad():
-            logits = model(idx_cond)
+        idx_cond = idx[:, -context_size:] # 마지막 context_size만 잘라냄.
+        with torch.no_grad(): # 추론할 때에는 gradient 연산 불필요.
+            logits = model(idx_cond) # GPT모델의 추론 값 = Logits
         
-        logits = logits[:, -1, :]
-        probas = torch.softmax(logits, dim=-1)
-        idx_next = torch.argmax(probas, dim=-1, keepdim=True)
-        idx = torch.cat((idx, idx_next), dim=1)
+        logits = logits[:, -1, :] # logits에 들어있는 마지막 위치의 예측만 가져옴. (batch_size, token_len, vocb_size) -> (B, vocab_size)
+        probas = torch.softmax(logits, dim=-1) # 마지막 차원 기준으로 softmax
+        idx_next = torch.argmax(probas, dim=-1, keepdim=True) # 확률이 가장 높은 토큰 ID 가져오기
+        idx = torch.cat((idx, idx_next), dim=1) # concat [origin_tokens, new_tokens]
     return idx
