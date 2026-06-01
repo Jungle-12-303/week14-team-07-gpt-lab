@@ -56,7 +56,7 @@ class MultiHeadAttention(nn.Module):
             return_attention_weights: True이면 attention weight도 함께 반환
         """
         batch_size, seq_len, d_model = x.shape
-        q: torch.Tensor = self.q_projection(x)
+        q: torch.Tensor = self.q_projection(x) # (batch_size, seq_len, d_model)
         k: torch.Tensor = self.k_projection(x)
         v: torch.Tensor = self.v_projection(x)
 
