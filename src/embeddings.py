@@ -20,7 +20,7 @@ class InputEmbedding(nn.Module):
     def __init__(
         self,
         vocab_size: int,    # tokenizer가 아는 token 개수
-        emb_dim: int,   # token 하나를 몇 차원 벡터로 바꿀지
+        emb_dim: int,   # token 하나를 몇 차원 벡터로 바꿀지(토큰 하나를 몇 개 숫자로 표현할 것인가)
         context_length: int,    # 최대 몇 개 token 위치까지 처리할지
         drop_rate: float = 0.1,
     ):
