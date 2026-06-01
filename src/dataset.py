@@ -47,8 +47,7 @@ class GPTDataset(Dataset):
         input_ids = torch.tensor(input_ids, dtype=torch.long)
         target_ids = torch.tensor(target_ids, dtype=torch.long)
 
-        raise NotImplementedError("GPTDataset.__getitem__을 구현하세요.")
-
+        return input_ids, target_ids
 
 def create_dataloader(
     token_ids: list[int],
@@ -60,4 +59,18 @@ def create_dataloader(
     num_workers: int = 0,
 ) -> DataLoader:
     """TODO: GPTDataset을 만들고 torch.utils.data.DataLoader로 감싸 반환합니다."""
-    raise NotImplementedError("create_dataloader를 구현하세요.")
+    dataset = GPTDataset(
+        token_ids,
+        context_length,
+        stride
+    )
+
+    dataloader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        drop_last=drop_last,
+        num_workers=num_workers
+    )
+
+    return dataloader
