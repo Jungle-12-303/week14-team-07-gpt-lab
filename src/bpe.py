@@ -282,10 +282,7 @@ class BPETokenizer:
         for token_id in ids:
             if skip_special == True and token_id in SPECIAL_IDS.values():
                 continue
-            token = self.id_to_token[token_id]
-            # if type(token) == bytes:
-            if isinstance(token, bytes):    # isinstance(객체, 타입) - 이 객체가 이 타입이 맞냐? (T/F 반환)
-                byte_list.append(token[0])
+            byte_list.extend(expand_token(token_id))
             
         return bytes(byte_list).decode('utf-8')
         
