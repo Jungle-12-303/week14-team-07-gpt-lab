@@ -26,7 +26,7 @@ class InputEmbedding(nn.Module):
         super().__init__()
         self.emb_dim = emb_dim
         self.context_length = context_length
-        # TODO: token_embedding, position_embedding, dropout을 정의하세요.
+        # token_embedding, position_embedding, dropout을 정의하세요.
 
         self.token_embedding = nn.Embedding(vocab_size, emb_dim)
         self.position_embedding = nn.Embedding(context_length, emb_dim)
@@ -45,14 +45,15 @@ class InputEmbedding(nn.Module):
         """
         if x.ndim != 2: # 잘못된 형식
             raise ValueError("token_ids must have shape (batch_size, seq_len)")
-        _, seq_len = x.shape
+        _, seq_len = x.shape # _ : 값은 꺼내긴 하지만 안 쓸게요” 라는 관용적 표현
 
+        # 너무 긴 입력이 들어와서 위치 임베딩 범위를 벗어나는 걸 미리 막는 검사
         if seq_len > self.context_length:
             raise ValueError(f"seq_len ({seq_len}) must be less than or equal to context_length ({self.context_length})"
         )
         
         token_embedding = self.token_embedding(x)
-        positions = torch.arange(seq_len, device=x.device)
+        positions = torch.arange(seq_len, device=x.device) # 현재 입력 문장의 각 토큰 위치 번호 생성
         position_embedding = self.position_embedding(positions)
 
         return self.dropout(token_embedding + position_embedding)
