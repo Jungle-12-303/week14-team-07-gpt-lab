@@ -284,5 +284,5 @@ class BPETokenizer:
                 continue
             byte_list.extend(expand_token(token_id))
             
-        return bytes(byte_list).decode('utf-8')
+        return bytes(byte_list).decode('utf-8', errors='replace')
         
