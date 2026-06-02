@@ -246,7 +246,7 @@ class BPETokenizer:
                 for i in ids
                 if self.id_to_token[i] not in SPECIAL_IDS
             ]
-            result = b''.join(byte_chunks).decode('utf-8')
+            result = b''.join(byte_chunks).decode('utf-8', errors='replace')
         else:
             # skip_special == False, 토큰을 그대로 출력한다.
             result = ''
@@ -255,5 +255,5 @@ class BPETokenizer:
                 if token in SPECIAL_IDS:
                     result += token
                 else:
-                    result += token_to_bytes(i).decode()
+                    result += token_to_bytes(i).decode('utf-8', errors='replace')
         return result
