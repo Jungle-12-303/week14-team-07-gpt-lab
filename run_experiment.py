@@ -10,12 +10,10 @@ import json
 import math
 import os
 import random
-import shutil
 import time
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-from types import SimpleNamespace
 
 import torch
 
@@ -29,7 +27,6 @@ from src.train import (
     compute_grad_norm,
     compute_historical_fit_metrics,
     save_checkpoint,
-    run_pytest_before_training,
 )
 
 
@@ -440,48 +437,6 @@ def append_run_index(output_root: Path, summary: dict) -> None:
         index_file.write(json.dumps(summary, ensure_ascii=False) + "\n")
 
 
-def build_experiment_args(
-    *,
-    preset: str | None = None,
-    output_dir: str | Path | None = None,
-    run_name: str | None = None,
-    text_file: str | Path | None = None,
-    device: str | None = None,
-    **overrides,
-):
-    values = deepcopy(COMMON_DEFAULTS)
-    if preset is not None:
-        values.update(deepcopy(PRESETS.get(preset, {})))
-    values["preset"] = preset
-
-    if output_dir is not None:
-        values["output_dir"] = str(output_dir)
-    if run_name is not None:
-        values["run_name"] = run_name
-    if text_file is not None:
-        values["text_file"] = str(text_file)
-    if device is not None:
-        values["device"] = device
-
-    if "activation" in overrides and "activation_name" not in overrides:
-        overrides["activation_name"] = overrides.pop("activation")
-    if "eval_iter" in overrides and "eval_batches" not in overrides:
-        overrides["eval_batches"] = overrides.pop("eval_iter")
-    if "post_norm" in overrides and overrides["post_norm"]:
-        overrides["norm_first"] = False
-
-    for key, value in overrides.items():
-        if value is not None:
-            values[key] = value
-
-    if values.get("norm_first") is None:
-        values["norm_first"] = not bool(values.get("post_norm", False))
-    elif values.get("post_norm"):
-        values["norm_first"] = False
-
-    return SimpleNamespace(**values)
-
-
 def run_training_loop(
     model: GPTModel,
     train_shards,
@@ -875,17 +830,13 @@ def train_once(args, text: str, overrides: dict | None = None, return_state: boo
     return result
 
 
-def persist_train_artifacts(
-    *,
-    args,
-    output_root: Path,
-    run_dir: Path,
-    result: dict,
-    model: GPTModel,
-    optimizer: torch.optim.Optimizer,
-    tokenizer,
-    train_output: dict,
-) -> dict:
+def run_train_command(args) -> None:
+    text = Path(args.text_file).read_text(encoding="utf-8")
+    output_root = Path(args.output_dir)
+    output_root.mkdir(parents=True, exist_ok=True)
+    run_dir = make_version_dir(output_root, args.run_name)
+
+    result, model, optimizer, tokenizer, train_output = train_once(args, text, return_state=True)
     results_row = result["plan"] | {
         "initial_train_loss": result["initial_train_loss"],
         "initial_val_loss": result["initial_val_loss"],
@@ -964,21 +915,19 @@ def persist_train_artifacts(
         encoding="utf-8",
     )
 
-    final_checkpoint_path = run_dir / "final_checkpoint.pt"
     save_checkpoint(
         model=model,
         optimizer=optimizer,
         epoch=result["epochs_ran"],
         global_step=result["epochs_ran"],
-        path=str(final_checkpoint_path),
+        path=str(run_dir / "final_checkpoint.pt"),
     )
-    final_checkpoint = torch.load(final_checkpoint_path, map_location="cpu")
+    final_checkpoint = torch.load(run_dir / "final_checkpoint.pt", map_location="cpu")
     final_checkpoint["config"] = result["config"]
     final_checkpoint["tokenizer_chars"] = args.tokenizer_chars
     final_checkpoint["vocab_size"] = args.vocab_size
-    torch.save(final_checkpoint, final_checkpoint_path)
+    torch.save(final_checkpoint, run_dir / "final_checkpoint.pt")
 
-    best_checkpoint_path = run_dir / "best_checkpoint.pt"
     if train_output["best_model_state"] is not None:
         model.load_state_dict(train_output["best_model_state"])
         optimizer.load_state_dict(train_output["best_optimizer_state"])
@@ -987,13 +936,13 @@ def persist_train_artifacts(
             optimizer=optimizer,
             epoch=result["best_epoch"],
             global_step=result["best_epoch"],
-            path=str(best_checkpoint_path),
+            path=str(run_dir / "best_checkpoint.pt"),
         )
-        best_checkpoint = torch.load(best_checkpoint_path, map_location="cpu")
+        best_checkpoint = torch.load(run_dir / "best_checkpoint.pt", map_location="cpu")
         best_checkpoint["config"] = result["config"]
         best_checkpoint["tokenizer_chars"] = args.tokenizer_chars
         best_checkpoint["vocab_size"] = args.vocab_size
-        torch.save(best_checkpoint, best_checkpoint_path)
+        torch.save(best_checkpoint, run_dir / "best_checkpoint.pt")
 
     summary = {
         "run_name": run_dir.name,
@@ -1014,163 +963,7 @@ def persist_train_artifacts(
         "config": result["config"],
     }
     append_run_index(output_root, summary)
-    return {
-        "summary": summary,
-        "best_checkpoint_path": best_checkpoint_path if best_checkpoint_path.exists() else None,
-        "final_checkpoint_path": final_checkpoint_path,
-    }
 
-
-def run_train_experiment(
-    *,
-    corpus: str | None = None,
-    text_file: str | Path | None = None,
-    output_dir: str | Path | None = None,
-    run_name: str = "notebook_run",
-    preset: str | None = None,
-    device: str = "cpu",
-    corpus_len: int | None = None,
-    checkpoint_path: str | Path | None = None,
-    align_tokenizer_to_corpus: bool = True,
-    run_tests: bool = False,
-    test_paths: list[str] | tuple[str, ...] | None = None,
-    repo_root: str | Path | None = None,
-    **overrides,
-):
-    if run_tests:
-        run_pytest_before_training(repo_root=repo_root, test_paths=test_paths)
-
-    if corpus is None:
-        text_path = Path(text_file or COMMON_DEFAULTS["text_file"])
-        corpus = text_path.read_text(encoding="utf-8")
-    if corpus_len is not None:
-        corpus = corpus[:corpus_len]
-
-    # In notebook-style runs that pass an in-memory corpus directly, keep the
-    # tokenizer training window aligned with the actual corpus slice used for
-    # model training so the baseline is not accidentally built on mismatched
-    # text ranges.
-    if align_tokenizer_to_corpus and text_file is None:
-        effective_corpus_chars = len(corpus)
-        requested_tokenizer_chars = overrides.get("tokenizer_chars")
-        if (
-            requested_tokenizer_chars is not None
-            and int(requested_tokenizer_chars) != effective_corpus_chars
-        ):
-            raise ValueError(
-                "When passing corpus directly, tokenizer_chars must match the "
-                "actual corpus slice used for training. "
-                f"Got tokenizer_chars={requested_tokenizer_chars}, "
-                f"effective_corpus_chars={effective_corpus_chars}."
-            )
-        overrides["tokenizer_chars"] = effective_corpus_chars
-
-    output_root = Path(output_dir or COMMON_DEFAULTS["output_dir"])
-    output_root.mkdir(parents=True, exist_ok=True)
-
-    args = build_experiment_args(
-        preset=preset,
-        output_dir=output_root,
-        run_name=run_name,
-        text_file=text_file,
-        device=device,
-        **overrides,
-    )
-    run_dir = make_version_dir(output_root, args.run_name)
-
-    result, model, optimizer, tokenizer, train_output = train_once(args, corpus, return_state=True)
-    persisted = persist_train_artifacts(
-        args=args,
-        output_root=output_root,
-        run_dir=run_dir,
-        result=result,
-        model=model,
-        optimizer=optimizer,
-        tokenizer=tokenizer,
-        train_output=train_output,
-    )
-
-    external_checkpoint = Path(checkpoint_path) if checkpoint_path is not None else None
-    if external_checkpoint is not None and persisted["best_checkpoint_path"] is not None:
-        external_checkpoint.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(persisted["best_checkpoint_path"], external_checkpoint)
-
-    history = [
-        {
-            "epoch": item["epoch"],
-            "train_loss": item["train_loss"],
-            "val_loss": item["val_loss"],
-            "gap": item["generalization_gap"],
-        }
-        for item in result["epoch_metrics"]
-    ]
-
-    stopped_reason = "early stopping: no validation improvement" if result["stopped_early"] else "max_epochs completed"
-    return {
-        "model": model,
-        "tokenizer": tokenizer,
-        "config": result["config"],
-        "optimizer": optimizer,
-        "history": history,
-        "epoch_metrics": result["epoch_metrics"],
-        "step_history": result["step_history"],
-        "eval_history": result["eval_history"],
-        "epoch_history": result["epoch_history"],
-        "plan": result["plan"],
-        "train_result": result,
-        "run_dir": run_dir,
-        "best_checkpoint_path": external_checkpoint if external_checkpoint is not None else persisted["best_checkpoint_path"],
-        "final_checkpoint_path": persisted["final_checkpoint_path"],
-        "best_val_loss": result["best_val_loss"],
-        "best_epoch": result["best_epoch"],
-        "stopped_reason": stopped_reason,
-    }
-
-
-def run_train_command(args) -> None:
-    experiment = run_train_experiment(
-        text_file=args.text_file,
-        output_dir=args.output_dir,
-        run_name=args.run_name,
-        preset=args.preset,
-        device=args.device,
-        vocab_size=args.vocab_size,
-        min_frequency=args.min_frequency,
-        context_length=args.context_length,
-        emb_dim=args.emb_dim,
-        n_heads=args.n_heads,
-        n_layers=args.n_layers,
-        drop_rate=args.drop_rate,
-        lr=args.lr,
-        weight_decay=args.weight_decay,
-        grad_clip=args.grad_clip,
-        batch_size=args.batch_size,
-        num_epochs=args.num_epochs,
-        eval_batches=args.eval_batches,
-        eval_every_steps=args.eval_every_steps,
-        train_ratio=args.train_ratio,
-        tokenizer_chars=args.tokenizer_chars,
-        stride=args.stride,
-        train_shards=args.train_shards,
-        patience=args.patience,
-        min_delta=args.min_delta,
-        prompt=args.prompt,
-        max_new_tokens=args.max_new_tokens,
-        qkv_bias=args.qkv_bias,
-        post_norm=args.post_norm,
-        norm_first=args.norm_first,
-        activation_name=args.activation_name,
-        ffn_mult=args.ffn_mult,
-        ffn_dropout_position=args.ffn_dropout_position,
-        attention_impl=args.attention_impl,
-        tie_embeddings=args.tie_embeddings,
-        init_std=args.init_std,
-        norm_eps=args.norm_eps,
-        seed=args.seed,
-    )
-
-    result = experiment["train_result"]
-    run_dir = experiment["run_dir"]
     print("final_train_loss:", result["final_train_loss"])
     print("final_val_loss:", result["final_val_loss"])
     print("final_train_perplexity:", result["final_train_perplexity"])
@@ -1183,8 +976,8 @@ def run_train_command(args) -> None:
     print("best_val_loss:", result["best_val_loss"])
     print("stopped_early:", result["stopped_early"])
     print("run_dir:", run_dir)
-    print("best_checkpoint:", experiment["best_checkpoint_path"])
-    print("final_checkpoint:", experiment["final_checkpoint_path"])
+    print("best_checkpoint:", run_dir / "best_checkpoint.pt")
+    print("final_checkpoint:", run_dir / "final_checkpoint.pt")
     print("generated_text:")
     print(result["generated_text"])
 
