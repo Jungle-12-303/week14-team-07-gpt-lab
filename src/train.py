@@ -232,18 +232,19 @@ def train_model(
     device: torch.device,
     num_epochs: int,
     eval_freq: int,
-    eval_iter: int,
+    eval_iter: int | None,
     start_context: str,
     tokenizer,
     ckpt_freq: int | None = None,
     start_epoch: int = 0,
     global_step: int = 0,
-) -> list[float]:
+) -> dict[str, list[float]]:
     """Simple epoch-based pretraining loop kept for the existing interface."""
 
     del start_context, tokenizer, ckpt_freq, global_step
 
     train_losses = []
+    test_losses = []
     model.to(device)
 
     for epoch in range(start_epoch, start_epoch + num_epochs):
@@ -263,9 +264,18 @@ def train_model(
         train_losses.append(avg_train_loss)
 
         if val_loader is not None and eval_freq > 0 and ((epoch - start_epoch + 1) % eval_freq == 0):
-            calc_loss_loader(val_loader, model, device, num_batches=eval_iter)
+            test_loss = calc_loss_loader(val_loader, model, device, num_batches=eval_iter)
+            test_losses.append(test_loss)
+            print(
+                f"Epoch {epoch - start_epoch + 1:02d}: "
+                f"train_loss={avg_train_loss:.4f}, test_loss={test_loss:.4f}"
+            )
 
-    return train_losses
+    return {
+        "train_losses": train_losses,
+        "test_losses": test_losses,
+        "val_losses": test_losses,
+    }
 
 
 def plot_losses(train_losses: list[float], val_losses: list[float] | None = None) -> None:
