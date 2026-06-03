@@ -125,3 +125,40 @@ def test_run_train_command_writes_dense_artifacts(tmp_path):
     ]
     for filename in expected_files:
         assert (run_dir / filename).exists(), f"missing artifact: {filename}"
+
+
+def test_run_train_experiment_returns_notebook_friendly_state_and_logs(tmp_path):
+    import run_experiment
+
+    corpus = "이 영화는 정말 재미있다. " * 50
+    checkpoint_path = tmp_path / "best_checkpoint.pt"
+
+    result = run_experiment.run_train_experiment(
+        corpus=corpus,
+        output_dir=tmp_path / "runs",
+        run_name="notebook_run",
+        device="cpu",
+        corpus_len=300,
+        vocab_size=200,
+        context_length=8,
+        emb_dim=32,
+        n_heads=4,
+        n_layers=1,
+        drop_rate=0.1,
+        activation="relu",
+        lr=1e-3,
+        num_epochs=1,
+        batch_size=2,
+        eval_iter=1,
+        checkpoint_path=checkpoint_path,
+    )
+
+    assert result["model"] is not None
+    assert result["tokenizer"] is not None
+    assert result["config"]["activation_name"] == "relu"
+    assert result["history"]
+    assert {"epoch", "train_loss", "val_loss", "gap"} <= set(result["history"][0].keys())
+    assert result["run_dir"].exists()
+    assert (result["run_dir"] / "results.csv").exists()
+    assert (result["run_dir"] / "step_history.csv").exists()
+    assert checkpoint_path.exists()
