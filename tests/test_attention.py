@@ -54,3 +54,13 @@ class TestMultiHeadAttention:
         for i in range(seq_len):
             for j in range(i + 1, seq_len):
                 assert torch.allclose(attn_weights[0, :, i, j], torch.zeros(n_heads))
+
+    @pytest.mark.parametrize("attention_impl", ["manual", "sdpa"])
+    def test_mha_supports_attention_impl_options(self, attention_impl):
+        """manual/sdpa 구현 모두 같은 shape의 출력을 반환하는지 확인한다."""
+        from attention import MultiHeadAttention
+
+        mha = MultiHeadAttention(64, 4, drop_rate=0.0, attention_impl=attention_impl)
+        x = torch.randn(2, 6, 64)
+        out = mha(x, causal_mask=True)
+        assert out.shape == (2, 6, 64)

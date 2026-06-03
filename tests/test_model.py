@@ -88,6 +88,20 @@ class TestFeedForward:
             pytest.fail("FeedForward 미구현")
         assert out.shape == (2, 10, d_model)
 
+    @pytest.mark.parametrize(
+        "activation_name",
+        ["gelu", "gelu_exact", "quick_gelu", "silu", "mish", "squared_relu", "swiglu"],
+    )
+    def test_feedforward_supports_activation_options(self, activation_name):
+        """FeedForward가 활성화 함수 교체 옵션을 받아도 shape를 유지하는지 확인한다."""
+        from model import FeedForward
+
+        d_model = 64
+        ffn = FeedForward(d_model, dropout=0.0, activation_name=activation_name)
+        x = torch.randn(2, 10, d_model)
+        out = ffn(x)
+        assert out.shape == (2, 10, d_model)
+
 
 # =============================================================================
 # TransformerBlock
@@ -150,6 +164,23 @@ class TestGPTModel:
             pytest.fail("GPTModel(targets=...) 미구현")
         assert loss.dim() == 0
         assert loss.item() >= 0
+
+    def test_gpt_supports_tied_embeddings(self):
+        """tie_embeddings=True일 때 출력 헤드와 토큰 임베딩 weight가 공유되는지 확인한다."""
+        from model import GPTModel
+
+        config = GPT_CONFIG_SMALL.copy()
+        config.update(
+            {
+                "tie_embeddings": True,
+                "ffn_mult": 3,
+                "ffn_dropout_position": "none",
+                "norm_eps": 1e-4,
+                "init_std": 0.018,
+            }
+        )
+        model = GPTModel(config)
+        assert model.out_head.weight is model.input_embedding.token_embedding.weight
 
 
 # =============================================================================
