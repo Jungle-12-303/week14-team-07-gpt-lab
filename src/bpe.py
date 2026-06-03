@@ -33,6 +33,7 @@ class BPETokenizer:
         self.id_to_token = {}
         self.token_to_id = {}
         self.merges = []
+        self._init_special_tokens()
 
     def _init_special_tokens(self):
         """
@@ -89,6 +90,8 @@ class BPETokenizer:
                     max_pair = pair
 
             if max_pair is None:
+                break
+            if max_pair_count < 2:
                 break
 
             new_id = len(self.id_to_token)
@@ -197,19 +200,23 @@ class BPETokenizer:
         """
 
         def expand_to_bytes(token_id: int) -> list[int]:
-            token = self.id_to_token[token_id]
+            expanded = []
+            stack = [token_id]
 
-            if isinstance(token, bytes):
-                return [token[0]]
+            while stack:
+                current_id = stack.pop()
+                token = self.id_to_token[current_id]
 
-            if isinstance(token, tuple):
-                left, right = token
-                return expand_to_bytes(left) + expand_to_bytes(right)
+                if isinstance(token, bytes):
+                    expanded.append(token[0])
+                elif isinstance(token, tuple):
+                    left, right = token
+                    stack.append(right)
+                    stack.append(left)
+                elif isinstance(token, str):
+                    expanded.extend(token.encode("utf-8", errors="replace"))
 
-            if isinstance(token, str):
-                return list(token.encode("utf-8"))
-
-            return []
+            return expanded
 
         byte_list = []
         for token_id in ids:
@@ -217,4 +224,4 @@ class BPETokenizer:
                 continue
             byte_list.extend(expand_to_bytes(token_id))
 
-        return bytes(byte_list).decode("utf-8")
+        return bytes(byte_list).decode("utf-8", errors="replace")

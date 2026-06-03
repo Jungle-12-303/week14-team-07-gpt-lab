@@ -43,15 +43,36 @@ class GELU(nn.Module):
         )
 
 
-class FeedForward(nn.Module):
-    """Transformer FFN: Linear -> GELU -> Linear -> Dropout."""
+class ReLU(nn.Module):
+    """ReLU activation wrapper used for config-based FFN selection."""
 
-    def __init__(self, d_model: int, dropout: float = 0.1, mult: int = 4):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.relu(x)
+
+
+class FeedForward(nn.Module):
+    """Transformer FFN: Linear -> activation -> Linear -> Dropout."""
+
+    def __init__(
+        self,
+        d_model: int,
+        dropout: float = 0.1,
+        mult: int = 4,
+        activation: str = "gelu",
+    ):
         super().__init__()
         hidden_dim = mult * d_model
+
+        if activation == "relu":
+            activation_layer = ReLU()
+        elif activation == "gelu":
+            activation_layer = GELU()
+        else:
+            raise ValueError(f"Unsupported activation: {activation}")
+
         self.layers = nn.Sequential(
             nn.Linear(d_model, hidden_dim),
-            GELU(),
+            activation_layer,
             nn.Linear(hidden_dim, d_model),
             nn.Dropout(dropout),
         )
@@ -72,6 +93,7 @@ class TransformerBlock(nn.Module):
         n_heads: int,
         drop_rate: float = 0.1,
         qkv_bias: bool = False,
+        activation: str = "gelu",
     ):
         super().__init__()
         self.ln1 = LayerNorm(d_model)
@@ -82,7 +104,7 @@ class TransformerBlock(nn.Module):
             qkv_bias=qkv_bias,
         )
         self.ln2 = LayerNorm(d_model)
-        self.ffn = FeedForward(d_model, dropout=drop_rate)
+        self.ffn = FeedForward(d_model, dropout=drop_rate, activation=activation)
         self.dropout = nn.Dropout(drop_rate)
 
     def forward(self, x: torch.Tensor, causal_mask: bool = True) -> torch.Tensor:
@@ -111,6 +133,7 @@ class GPTModel(nn.Module):
                     n_heads=config["n_heads"],
                     drop_rate=config["drop_rate"],
                     qkv_bias=config["qkv_bias"],
+                    activation=config.get("activation", "gelu"),
                 )
                 for _ in range(config["n_layers"])
             ]
