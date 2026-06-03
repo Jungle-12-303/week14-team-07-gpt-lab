@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 89,
+    "hypothesis": "Run088 confirmed that the current mish + ffn_mult=3 default is broadly seed-sensitive: fresh seed404 at stride=24 drove train loss down to 5.490697 while validation stayed at 5.548481, producing final_generalization_gap=0.057785 and overfit_score=0.176580. Run086 showed that reducing stride from 24 to 16 rescued a similar bad fresh seed303 gap, while run087 showed stride=16 is not a good global default for seed151. Keeping seed404 fixed and changing only stride to 16 will test whether stride=16 is a targeted rescue window for overfitting fresh seeds rather than a default setting.",
+    "seed": 404,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": 16,
+    "batch_size": 8,
+    "max_steps": 90,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.12,
+    "qkv_bias": false,
+    "ffn_mult": 3,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "mish",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

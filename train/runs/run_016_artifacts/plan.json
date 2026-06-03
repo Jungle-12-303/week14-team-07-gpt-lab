@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 16,
+    "hypothesis": "FFN dropout 위치 교체 단일축 테스트: run 008 quick_gelu seed=151이 현재 best지만 overfit_score는 0.139379로 아직 완전히 낮지는 않다. 같은 best 설정에서 ffn_dropout_position만 after_output에서 after_activation으로 바꾸면 FFN hidden activation에 직접 dropout이 걸려 train 쪽 과개선을 조금 줄이고, 구조를 바꾸지 않으면서 final_val_loss와 overfit_score의 균형을 개선할 수 있다.",
+    "seed": 151,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 64,
+    "stride": null,
+    "batch_size": 8,
+    "max_steps": 40,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.1,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "quick_gelu",
+    "ffn_dropout_position": "after_activation",
+    "attention_impl": "manual",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

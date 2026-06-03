@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 69,
+    "hypothesis": "새 기준 후보인 silu + ffn_mult=3에서 FFN dropout 위치를 none에서 after_activation으로 바꾸면, Transformer 구조와 parameter_count를 유지하면서 activation 이후 hidden representation에만 약한 regularization을 줄 수 있다. run068은 seed151에서 현재 best를 만들었고 gap이 음수라 과적합은 없으므로, 이번 실험은 regularization 위치 변경이 validation 안정성을 더 높이는지 아니면 underfit을 만드는지 확인하는 단일축 테스트다.",
+    "seed": 151,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": 24,
+    "batch_size": 8,
+    "max_steps": 90,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.12,
+    "qkv_bias": false,
+    "ffn_mult": 3,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "silu",
+    "ffn_dropout_position": "after_activation",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

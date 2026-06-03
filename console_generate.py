@@ -39,10 +39,18 @@ def main() -> None:
     device = torch.device(args.device)
 
     text = Path(args.text_file).read_text(encoding="utf-8")
-    tokenizer = BPETokenizer(vocab_size=args.vocab_size)
-    tokenizer.train(text[: args.tokenizer_chars])
+    checkpoint = None
+    if args.checkpoint:
+        checkpoint = torch.load(args.checkpoint, map_location=device)
 
-    config = {
+    checkpoint_config = checkpoint.get("config") if checkpoint is not None else None
+    tokenizer_chars = checkpoint.get("tokenizer_chars", args.tokenizer_chars) if checkpoint is not None else args.tokenizer_chars
+    vocab_size = checkpoint_config.get("vocab_size", args.vocab_size) if checkpoint_config is not None else args.vocab_size
+
+    tokenizer = BPETokenizer(vocab_size=vocab_size)
+    tokenizer.train(text[:tokenizer_chars])
+
+    config = checkpoint_config or {
         "vocab_size": args.vocab_size,
         "context_length": args.context_length,
         "emb_dim": args.emb_dim,
@@ -54,8 +62,7 @@ def main() -> None:
     }
     model = GPTModel(config).to(device)
 
-    if args.checkpoint:
-        checkpoint = torch.load(args.checkpoint, map_location=device)
+    if checkpoint is not None:
         model.load_state_dict(checkpoint["model_state_dict"])
 
     print("프롬프트를 입력하세요. 종료하려면 빈 줄을 입력하세요.")
@@ -70,7 +77,7 @@ def main() -> None:
             model=model,
             idx=idx,
             max_new_tokens=args.max_new_tokens,
-            context_size=args.context_length,
+            context_size=config["context_length"],
             temperature=args.temperature,
             top_k=args.top_k,
             eos_id=tokenizer.get_eos_id(),

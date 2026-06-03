@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 53,
+    "hypothesis": "seed=134 gelu_exact + drop_rate=0.12 조건에서 learning_rate=0.000275 안정화 검증: run052는 seed=134, gelu_exact, drop_rate=0.12, learning_rate=0.0003, max_steps=80 조건에서 final_val_loss=5.554794로 저손실을 유지했지만 gap=0.044721, overfit_score=0.139939로 여전히 train 편향이 컸다. run037/run042는 learning_rate=0.000275가 seed134의 과적합 신호를 낮추는 가장 일관된 축임을 보여줬다. 따라서 run052와 동일한 함수/regularization 조합에서 learning_rate만 0.000275로 낮추면 validation 손실을 크게 늘리지 않으면서 gap과 overfit_score를 안정적으로 낮출 수 있는지 확인한다.",
+    "seed": 134,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": null,
+    "batch_size": 8,
+    "max_steps": 80,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.000275,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.12,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "gelu_exact",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """GPT 사전 학습 유틸리티 과제 템플릿."""
 
-import matplotlib.pyplot as plt
+import os
 import torch
 from pathlib import Path
 
@@ -202,6 +202,10 @@ def train_model(
 
 def plot_losses(train_losses: list[float], val_losses: list[float] | None = None) -> None:
     """훈련/검증 손실 그래프를 그리는 제공 함수."""
+    os.environ.setdefault("MPLBACKEND", "Agg")
+    os.environ.setdefault("MPLCONFIGDIR", "/tmp/mplcfg")
+    import matplotlib.pyplot as plt
+
     plt.plot(train_losses, label="Train")
     if val_losses is not None:
         plt.plot(val_losses, label="Val")

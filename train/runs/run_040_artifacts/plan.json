@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 40,
+    "hypothesis": "drop_rate=0.12 seed=134 과적합 완화 테스트: run034는 learning_rate=0.0003, max_steps=80에서 validation loss는 5.554664로 강했지만 gap=0.047536, overfit_score=0.148410의 overfit_risk가 되었다. weight_decay=0.02는 거의 효과가 없었고, learning_rate=0.000275는 안정적이지만 validation loss가 약간 밀렸다. 따라서 learning_rate=0.0003의 낮은 validation 후보를 유지한 채 drop_rate만 0.10에서 0.12로 아주 작게 올리면 train 쪽 과도 적합을 줄이면서 low-loss 영역을 보존할 수 있는지 확인한다.",
+    "seed": 134,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": null,
+    "batch_size": 8,
+    "max_steps": 80,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.12,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "quick_gelu",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

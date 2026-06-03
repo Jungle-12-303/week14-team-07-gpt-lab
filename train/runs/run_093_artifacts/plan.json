@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 93,
+    "hypothesis": "For the seed404 mish baseline, increasing drop_rate from 0.14 to 0.16 may cross the regularization threshold needed to reduce the high stride24 overfit_score while preserving the validation advantage over the stride16 rescue.",
+    "seed": 404,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": 24,
+    "batch_size": 8,
+    "max_steps": 90,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.16,
+    "qkv_bias": false,
+    "ffn_mult": 3,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "mish",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

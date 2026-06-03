@@ -88,6 +88,17 @@ class TestFeedForward:
             pytest.fail("FeedForward 미구현")
         assert out.shape == (2, 10, d_model)
 
+    @pytest.mark.parametrize("activation_name", ["gelu", "gelu_exact", "quick_gelu"])
+    def test_feedforward_supports_activation_options(self, activation_name):
+        """FeedForward가 활성화 함수 교체 옵션을 받아도 shape를 유지하는지 확인한다."""
+        from model import FeedForward
+
+        d_model = 64
+        ffn = FeedForward(d_model, dropout=0.0, activation_name=activation_name)
+        x = torch.randn(2, 10, d_model)
+        out = ffn(x)
+        assert out.shape == (2, 10, d_model)
+
 
 # =============================================================================
 # TransformerBlock

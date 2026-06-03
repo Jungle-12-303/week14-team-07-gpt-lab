@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 65,
+    "hypothesis": "silu activation 후보의 3-seed 검증을 완성한다. run063(seed202)과 run064(seed134)는 activation_name=silu 조건에서 final_val_loss를 gelu_exact 대응 run보다 아주 작게 낮추면서 overfit_score=0.0을 유지했다. 남은 seed151에서도 같은 조건을 반복하면 silu 개선이 seed202/134에만 국한된 우연인지, 아니면 현재 안정 baseline 위에서 평균적으로 유효한 함수 교체인지 판단할 수 있다.",
+    "seed": 151,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": 24,
+    "batch_size": 8,
+    "max_steps": 90,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.12,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "silu",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

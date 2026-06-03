@@ -1,0 +1,38 @@
+{
+  "hypothesis": "For the overfit-prone fresh seed707 under the promoted max_steps=100 candidate, reducing stride from 24 to 20 will add moderate window overlap that lowers the high generalization gap while preserving most of the strong raw validation.",
+  "rationale": "Run104 showed that mish stride24 max_steps100 can still fail by seed: seed707 reached competitive final_val_loss 5.533458, but train loss fell to 5.482966, producing final_generalization_gap 0.050492 and overfit_score 0.216414. Earlier stride experiments established stride20 as the cleanest targeted rescue for high-gap seeds: it rescued seed404 from overfit_risk to generalizing with overfit_score 0.0 and improved seed303 versus both stride24 and stride16, while stride20 was not good enough to become a global default for seed151. Therefore the safest next test is not activation, dropout, capacity, or learning-rate tuning, but a matched seed707 stride20 rescue while keeping the new 100-step horizon intact.",
+  "changed_variables": {
+    "seed": 707,
+    "stride": 20,
+    "max_steps": 100
+  },
+  "fixed_variables": [
+    "vocab_size",
+    "context_length",
+    "batch_size",
+    "learning_rate",
+    "weight_decay",
+    "grad_clip",
+    "emb_dim",
+    "n_heads",
+    "n_layers",
+    "drop_rate",
+    "qkv_bias",
+    "ffn_mult",
+    "norm_first",
+    "norm_eps",
+    "activation_name",
+    "ffn_dropout_position",
+    "attention_impl",
+    "tie_embeddings",
+    "init_std"
+  ],
+  "expected_result": "A useful rescue should reduce seed707 final_generalization_gap well below 0.050492 and overfit_score below 0.10, ideally restoring fit_status=generalizing while keeping final_val_loss near the new 100-step band and below about 5.545. If validation worsens toward 5.55+ or overfit_score remains high, stride20 is not enough under the longer horizon.",
+  "next_if_success": "If stride20 rescues seed707 under max_steps100, document the policy as mish max_steps100 default for low-risk seeds plus stride20 rescue for high-gap fresh seeds, then test one more fresh seed only if more variance confidence is needed.",
+  "next_if_overfit": "If stride20 still overfits seed707, test whether lowering max_steps to 95 on seed707 stride20 reduces train-side over-progress before changing regularization, capacity, activation, or learning rate.",
+  "config_overrides": {
+    "seed": 707,
+    "stride": 20,
+    "max_steps": 100
+  }
+}

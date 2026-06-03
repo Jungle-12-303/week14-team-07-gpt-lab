@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 67,
+    "hypothesis": "ffn_mult=3으로 줄인 silu 후보가 seed202에서 새 best를 만들었으므로, 같은 더 작은 FFN 폭이 seed134 stress seed에서도 validation과 과적합 안정성을 유지하는지 검증한다. seed134는 이전 고학습률 계열에서 과적합 신호가 강했던 seed라서, 여기서 ffn_mult=3이 통과하면 run066의 개선이 단순한 seed202 운이 아니라 작은 FFN이 현재 corpus에 더 잘 맞는다는 근거가 된다.",
+    "seed": 134,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": 24,
+    "batch_size": 8,
+    "max_steps": 90,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.12,
+    "qkv_bias": false,
+    "ffn_mult": 3,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "silu",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

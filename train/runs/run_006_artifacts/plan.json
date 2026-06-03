@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 6,
+    "hypothesis": "FFN 용량 축소 단일축 테스트: run 004의 tie_embeddings=True 설정은 validation loss와 final gap을 개선했지만 overfit_score는 여전히 높다. weight_decay 강화(run 005)는 거의 효과가 없었으므로, run 004 설정을 유지하고 ffn_mult만 4에서 3으로 줄이면 token별 FFN 암기 용량이 낮아져 validation 성능을 크게 잃지 않으면서 overfit_score와 train_val_improvement_gap이 완화될 수 있다.",
+    "seed": 134,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 64,
+    "stride": null,
+    "batch_size": 8,
+    "max_steps": 40,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.1,
+    "qkv_bias": false,
+    "ffn_mult": 3,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "gelu",
+    "ffn_dropout_position": "after_output",
+    "attention_impl": "manual",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

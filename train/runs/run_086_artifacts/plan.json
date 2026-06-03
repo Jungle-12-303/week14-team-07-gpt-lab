@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 86,
+    "hypothesis": "Run085 showed that the current best mish configuration is seed-sensitive: seed303 drove train loss down to 5.517277 while validation stayed at 5.559609, producing a high positive gap and overfit_score=0.158101. Keeping the same seed303 and model settings but reducing stride from 24 to 16 will test whether denser overlapping training windows can reduce the train/validation mismatch without changing the Transformer architecture or activation. If the problem is window coverage sensitivity rather than model capacity alone, stride=16 should reduce the gap and overfit_score while keeping validation in a usable range.",
+    "seed": 303,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": 16,
+    "batch_size": 8,
+    "max_steps": 90,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.12,
+    "qkv_bias": false,
+    "ffn_mult": 3,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "mish",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 29,
+    "hypothesis": "context_length 경계 확인 실험: context_length=40은 overfit_risk와 validation 악화를 만들었고, context_length=48은 현재 best이다. quick_gelu + sdpa + tie_embeddings=True + ffn_dropout_position=none을 유지한 채 context_length만 56으로 늘리면, 48보다 조금 더 긴 문맥이 정보량을 보강하면서도 64-token 계열의 과적합 위험으로 돌아가지 않는지 확인할 수 있다.",
+    "seed": 134,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 56,
+    "stride": null,
+    "batch_size": 8,
+    "max_steps": 40,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.1,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "quick_gelu",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

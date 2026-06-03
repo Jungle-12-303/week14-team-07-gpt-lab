@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 90,
+    "hypothesis": "Run089 confirmed that stride=16 is a reliable rescue knob for fresh overfit seeds, but it pays for lower overfit with worse validation: seed404 moved from run088 final_val_loss=5.548481 and overfit_score=0.176580 to run089 final_val_loss=5.555461 and overfit_score=0.032910. A shorter training horizon at the original stride=24 may keep more of run088's validation advantage while avoiding the severe train-side over-progress. Keeping seed404 fixed, restoring stride=24, and reducing max_steps from 90 to 80 will test whether early stopping is a better validation/robustness tradeoff than denser windows.",
+    "seed": 404,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": 24,
+    "batch_size": 8,
+    "max_steps": 80,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.12,
+    "qkv_bias": false,
+    "ffn_mult": 3,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "mish",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

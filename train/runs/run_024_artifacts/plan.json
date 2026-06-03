@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 24,
+    "hypothesis": "attention_impl=sdpa 구현 교체 단일축 테스트: context_length=48은 seed=134/151/202에서 모두 기존 64보다 좋은 일반화 신호를 만들었다. 이 설정을 고정하고 attention_impl만 manual에서 sdpa로 바꾸면, Transformer 구조 의미를 유지하면서 MPS에서 처리량을 개선하거나 최소한 같은 validation/overfit 품질을 유지할 수 있는지 확인할 수 있다.",
+    "seed": 134,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": null,
+    "batch_size": 8,
+    "max_steps": 40,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.1,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "quick_gelu",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

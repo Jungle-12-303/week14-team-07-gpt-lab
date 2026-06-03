@@ -62,17 +62,42 @@ class GELU(nn.Module):
             )
         )
 
+
+class GELUExact(nn.Module):
+    """정확한 GELU 활성화 함수."""
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return 0.5 * x * (1.0 + torch.erf(x / torch.sqrt(torch.tensor(2.0, device=x.device, dtype=x.dtype))))
+
+
+class QuickGELU(nn.Module):
+    """Quick GELU 활성화 함수."""
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x * torch.sigmoid(1.702 * x)
+
+
+def build_activation(activation_name: str) -> nn.Module:
+    """설정 문자열에 맞는 활성화 함수를 생성합니다."""
+    if activation_name == "gelu":
+        return GELU()
+    if activation_name == "gelu_exact":
+        return GELUExact()
+    if activation_name == "quick_gelu":
+        return QuickGELU()
+    raise ValueError(f"Unsupported activation_name: {activation_name}")
+
 # FFN : Feed-Forward Network
 # 입력 x를 FFN 전체에 통과시켜 결과를 반환 <= 설명이 이게 다임?
 class FeedForward(nn.Module):
     """Transformer FFN: Linear -> GELU -> Linear -> Dropout."""
 
-    def __init__(self, d_model: int, dropout: float = 0.1, mult: int = 4):
+    def __init__(self, d_model: int, dropout: float = 0.1, mult: int = 4, activation_name: str = "gelu"):
         super().__init__()
         hidden_dim = mult * d_model
         self.layers = nn.Sequential(
             nn.Linear(d_model, hidden_dim),
-            GELU(),
+            build_activation(activation_name),
             nn.Linear(hidden_dim, d_model), # 입력 차원을 더 큰 히든 차원으로 확장
             nn.Dropout(dropout),
         )
@@ -94,7 +119,8 @@ class TransformerBlock(nn.Module):
         n_heads: int,
         drop_rate: float = 0.1,
         qkv_bias: bool = False,
-        pre_norm: bool = True, 
+        pre_norm: bool = True,
+        activation_name: str = "gelu",
     ):
         super().__init__()
         self.pre_norm = pre_norm # pre-norm 방식인지 post-norm 방식인지 저장
@@ -106,7 +132,7 @@ class TransformerBlock(nn.Module):
             qkv_bias=qkv_bias,
         )
         self.norm2 = LayerNorm(d_model) # FFN 앞/뒤에 쓸 두 번째 LayerNorm 생성
-        self.ffn = FeedForward(d_model=d_model, dropout=drop_rate) # FFN 모듈 생성
+        self.ffn = FeedForward(d_model=d_model, dropout=drop_rate, activation_name=activation_name) # FFN 모듈 생성
 
     def forward(self, x: torch.Tensor, causal_mask: bool = True) -> torch.Tensor:
         """pre-norm/post-norm 설정에 따라 attention과 FFN을 residual로 연결합니다."""
@@ -142,6 +168,7 @@ class GPTModel(nn.Module):
         qkv_bias = config["qkv_bias"]
         n_layers = config["n_layers"]
         pre_norm = config.get("pre_norm", True)
+        activation_name = config.get("activation_name", "gelu")
         
         # 토큰 ID를 입력 임베딩 벡터로 바꾸는 모듈 생성
         self.input_embedding = InputEmbedding(vocab_size, emb_dim,context_length, drop_rate)
@@ -151,7 +178,14 @@ class GPTModel(nn.Module):
         # nn.Sequential: 모듈 저장하고, x를 넣으면 순서대로 자동 호출
         self.trf_blocks = nn.ModuleList(
             [
-                TransformerBlock(emb_dim, n_heads, drop_rate, qkv_bias, pre_norm=pre_norm)
+                TransformerBlock(
+                    emb_dim,
+                    n_heads,
+                    drop_rate,
+                    qkv_bias,
+                    pre_norm=pre_norm,
+                    activation_name=activation_name,
+                )
                 for _ in range(n_layers) # 직접 호출
             ]
         )

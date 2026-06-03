@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 75,
+    "hypothesis": "mish + ffn_mult=3과 silu + ffn_mult=3이 세 seed에서 거의 같은 low-loss/low-overfit 영역을 형성했으므로, 같은 작은 FFN 후보에서 activation_name만 quick_gelu로 바꾸면 GELU 근사의 단순한 곡선이 mish/silu와 동등한 validation loss를 유지하면서 더 빠르거나 더 안정적인 대안이 될 수 있다. 우선 현재 best인 run072와 같은 seed151 조건에서 matched activation ablation을 시작한다.",
+    "seed": 151,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": 24,
+    "batch_size": 8,
+    "max_steps": 90,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.12,
+    "qkv_bias": false,
+    "ffn_mult": 3,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "quick_gelu",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

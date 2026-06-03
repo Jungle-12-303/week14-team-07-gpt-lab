@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 26,
+    "hypothesis": "context_length=48 + sdpa 기준의 activation 계열 확장 테스트: quick_gelu와 gelu_exact가 거의 같은 low-overfit 결과를 냈지만 quick_gelu가 아직 best에 가깝다. 같은 구조와 parameter_count를 유지한 채 activation_name만 silu로 바꾸면, 더 부드러운 비단조 계열이 작은 데이터에서 train/val 균형을 개선하거나 최소한 과적합 없이 경쟁 가능한지 확인할 수 있다.",
+    "seed": 134,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": null,
+    "batch_size": 8,
+    "max_steps": 40,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.1,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "silu",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

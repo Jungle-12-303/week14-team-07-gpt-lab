@@ -1,0 +1,48 @@
+{
+  "description": "LLM-authored next experiment plan consumed by python -m src.train_loop_agent.",
+  "required": [
+    "hypothesis",
+    "rationale",
+    "expected_result",
+    "config_overrides"
+  ],
+  "properties": {
+    "hypothesis": "Research hypothesis for the next run.",
+    "rationale": "Why this hypothesis follows from the leaderboard and latest report.",
+    "changed_variables": "Object containing the variables intentionally changed.",
+    "fixed_variables": "List of variables intentionally held fixed.",
+    "expected_result": "Expected train/validation/overfit behavior.",
+    "next_if_success": "Follow-up if the result generalizes.",
+    "next_if_overfit": "Follow-up if overfitting appears.",
+    "config_overrides": {
+      "allowed_keys": [
+        "activation_name",
+        "attention_impl",
+        "batch_size",
+        "context_length",
+        "drop_rate",
+        "emb_dim",
+        "eval_batches",
+        "ffn_dropout_position",
+        "ffn_mult",
+        "grad_clip",
+        "init_std",
+        "learning_rate",
+        "max_steps",
+        "min_frequency",
+        "n_heads",
+        "n_layers",
+        "norm_eps",
+        "norm_first",
+        "qkv_bias",
+        "seed",
+        "stride",
+        "tie_embeddings",
+        "train_ratio",
+        "vocab_size",
+        "weight_decay"
+      ],
+      "note": "Only include small function/hyperparameter/training-condition changes. The script will preserve run_id and copy hypothesis."
+    }
+  }
+}

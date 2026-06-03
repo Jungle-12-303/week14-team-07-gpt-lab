@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 46,
+    "hypothesis": "seed=134 과적합 구간에서 gelu_exact activation 단일축 검증: run034는 learning_rate=0.0003, max_steps=80, seed=134, quick_gelu 조건에서 final_val_loss=5.554664까지 낮아졌지만 gap=0.047536, overfit_score=0.148410으로 overfit_risk가 되었다. 반면 run044(seed=151)와 run045(seed=202)에서는 같은 저손실 계열에서 gelu_exact가 quick_gelu 대비 validation 또는 overfit_score를 아주 작게 개선했다. 따라서 run034와 동일한 seed=134 조건에서 activation_name만 gelu_exact로 바꾸면 낮은 validation은 유지하면서 train 쪽 과도 적합 신호를 줄일 수 있는지 확인한다.",
+    "seed": 134,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": null,
+    "batch_size": 8,
+    "max_steps": 80,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.1,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "gelu_exact",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

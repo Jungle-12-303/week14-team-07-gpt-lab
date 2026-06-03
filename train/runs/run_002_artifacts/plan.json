@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 2,
+    "hypothesis": "MPS 기준선 재수립: run 001은 max_steps=1 smoke라 과소학습 신호가 강했으므로, Apple Silicon MPS에 맞춘 중간 크기 기준선으로 validation 개선과 gap 안정성을 다시 측정한다.",
+    "seed": 134,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 64,
+    "stride": null,
+    "batch_size": 8,
+    "max_steps": 40,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.1,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "gelu",
+    "ffn_dropout_position": "after_output",
+    "attention_impl": "manual",
+    "tie_embeddings": false,
+    "init_std": 0.02
+  }
+]

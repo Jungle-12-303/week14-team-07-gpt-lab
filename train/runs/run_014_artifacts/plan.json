@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 14,
+    "hypothesis": "learning_rate 하향 최적화 단일축 테스트: quick_gelu seed=202 계열은 run 012와 run 013에서 모두 overfit_risk였고, drop_rate=0.15는 validation loss를 더 악화시켰다. dropout을 기준값 0.10으로 되돌리고 learning_rate만 0.0003에서 0.0002로 낮추면 train loss가 너무 빠르게 내려가며 validation 개선을 앞지르는 현상을 줄여 overfit_score와 train_val_improvement_gap을 낮출 수 있다.",
+    "seed": 202,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 64,
+    "stride": null,
+    "batch_size": 8,
+    "max_steps": 40,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0002,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.1,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "quick_gelu",
+    "ffn_dropout_position": "after_output",
+    "attention_impl": "manual",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

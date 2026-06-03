@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 68,
+    "hypothesis": "silu + ffn_mult=3 효율 후보의 3-seed 검증을 완성한다. run066(seed202)은 ffn_mult=3이 새 best를 만들었고, run067(seed134)은 ffn_mult=4보다 약간 높은 validation loss를 보였지만 overfit_score=0.0과 더 작은 parameter_count를 유지했다. 남은 seed151에서 같은 설정을 반복하면 ffn_mult=3이 평균적으로 ffn_mult=4를 대체할 수 있는 효율 후보인지, 아니면 seed202에 강하게 치우친 축소 모델인지 판단할 수 있다.",
+    "seed": 151,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": 24,
+    "batch_size": 8,
+    "max_steps": 90,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.12,
+    "qkv_bias": false,
+    "ffn_mult": 3,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "silu",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

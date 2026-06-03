@@ -1,0 +1,37 @@
+{
+  "hypothesis": "Repeating the max_steps=100 horizon on the known best-band seed151 mish stride24 configuration will show whether run101's large validation gain was a transferable optimization effect rather than a seed606-specific lucky trajectory.",
+  "rationale": "Run101 lowered raw final_val_loss dramatically to 5.530441 by increasing max_steps from 90 to 100 on seed606, but its overfit_score rose to 0.100989 and the dashboard still treats run072 as the best overfit-aware candidate. Run072 remains the clean reference point: seed151, mish, stride24, max_steps90, final_val_loss 5.542158, final_generalization_gap -0.017935, overfit_score 0.0. Testing seed151 at max_steps100 is the highest-information follow-up because it directly checks whether the extra 10 steps improve the established best seed or merely over-optimize train loss on a favorable seed.",
+  "changed_variables": {
+    "seed": 151,
+    "max_steps": 100
+  },
+  "fixed_variables": [
+    "vocab_size",
+    "context_length",
+    "stride",
+    "batch_size",
+    "learning_rate",
+    "weight_decay",
+    "grad_clip",
+    "emb_dim",
+    "n_heads",
+    "n_layers",
+    "drop_rate",
+    "qkv_bias",
+    "ffn_mult",
+    "norm_first",
+    "norm_eps",
+    "activation_name",
+    "ffn_dropout_position",
+    "attention_impl",
+    "tie_embeddings",
+    "init_std"
+  ],
+  "expected_result": "A successful transfer result should lower seed151 validation below the run072 baseline of 5.542158, ideally without pushing final_generalization_gap above 0.02 or overfit_score above 0.08. If train loss improves but validation stays flat or overfit_score reaches the medium-risk band around 0.10, max_steps=100 should remain a seed606 observation rather than a default.",
+  "next_if_success": "Repeat max_steps=100 on seed202 to estimate whether the longer horizon improves more than one historically strong seed before promoting it as the new stride24 default.",
+  "next_if_overfit": "Revert the default horizon to max_steps=90 and keep the current policy: mish stride24 at init_std 0.02 as default, stride20 only for high-gap rescue. Move next to a different variance-reduction axis instead of training longer.",
+  "config_overrides": {
+    "seed": 151,
+    "max_steps": 100
+  }
+}

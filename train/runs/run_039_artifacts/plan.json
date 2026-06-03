@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 39,
+    "hypothesis": "learning_rate=0.000275 seed=151 평균 후보 검증: seed=134와 seed=202에서 learning_rate=0.000275는 max_steps=80 조건의 과적합 위험을 줄이면서 generalizing을 유지했다. 같은 설정을 seed=151에 반복하면, 0.000275가 특정 seed 보정이 아니라 세 seed 평균에서 안정적인 learning_rate 후보인지 판단할 수 있다.",
+    "seed": 151,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": null,
+    "batch_size": 8,
+    "max_steps": 80,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.000275,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.1,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "quick_gelu",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

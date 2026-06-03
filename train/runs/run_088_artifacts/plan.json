@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 88,
+    "hypothesis": "Run087 showed that stride=16 is not a good general default: on the known-good seed151 it kept overfit_score at 0.0 but raised final_val_loss to 5.547792, well above the run072 best band. Therefore the loop should return to the run072 mish + ffn_mult=3 + stride=24 default and measure fresh seed variance directly. Running a new seed404 with the unchanged default will test whether run085 seed303 was an isolated bad seed/window draw or whether the current best plateau is broadly seed-sensitive.",
+    "seed": 404,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": 24,
+    "batch_size": 8,
+    "max_steps": 90,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.12,
+    "qkv_bias": false,
+    "ffn_mult": 3,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "mish",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

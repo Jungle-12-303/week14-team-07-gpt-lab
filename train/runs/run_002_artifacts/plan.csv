@@ -1,0 +1,2 @@
+run_id,hypothesis,seed,vocab_size,min_frequency,context_length,stride,batch_size,max_steps,eval_batches,train_ratio,learning_rate,weight_decay,grad_clip,emb_dim,n_heads,n_layers,drop_rate,qkv_bias,ffn_mult,norm_first,norm_eps,activation_name,ffn_dropout_position,attention_impl,tie_embeddings,init_std
+2,"MPS 기준선 재수립: run 001은 max_steps=1 smoke라 과소학습 신호가 강했으므로, Apple Silicon MPS에 맞춘 중간 크기 기준선으로 validation 개선과 gap 안정성을 다시 측정한다.",134,600,2,64,,8,40,4,0.9,0.0003,0.01,1.0,128,4,2,0.1,False,4,False,1e-05,gelu,after_output,manual,False,0.02

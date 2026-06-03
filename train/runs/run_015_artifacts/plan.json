@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 15,
+    "hypothesis": "max_steps 조기 중단 단일축 테스트: seed=202 quick_gelu 계열은 learning_rate를 낮추면 validation loss가 크게 악화되고, dropout을 올려도 overfit_score가 거의 줄지 않았다. learning_rate를 0.0003으로 되돌리고 max_steps만 40에서 30으로 줄이면 train 쪽 과도한 개선이 누적되기 전에 멈춰 train_val_improvement_gap과 overfit_score를 낮추면서 run 012보다 validation 손실을 덜 악화시킬 수 있다.",
+    "seed": 202,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 64,
+    "stride": null,
+    "batch_size": 8,
+    "max_steps": 30,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.1,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "quick_gelu",
+    "ffn_dropout_position": "after_output",
+    "attention_impl": "manual",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

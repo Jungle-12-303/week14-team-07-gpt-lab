@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 56,
+    "hypothesis": "seed=134 저손실 경로에서 stride=24 데이터 window 축 검증: run050/run051/run052의 learning_rate=0.0003 + drop_rate=0.12 + gelu_exact 저손실 경로는 세 seed 평균 validation이 안정 경로보다 좋았지만, seed=134 run052는 gap=0.044721, overfit_score=0.139939로 train 편향이 여전히 컸다. 반대로 learning_rate=0.000275 안정 경로는 overfit_score를 낮췄지만 validation을 약 0.009 올렸다. 따라서 run052와 동일한 모델/함수/학습률 조건에서 stride만 null에서 24로 줄여 overlapping training windows를 늘리면, 구조를 바꾸지 않고 데이터 노출 다양성을 늘려 validation 손실을 유지하면서 seed134의 gap과 overfit_score를 낮출 수 있는지 확인한다.",
+    "seed": 134,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": 24,
+    "batch_size": 8,
+    "max_steps": 80,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.12,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "gelu_exact",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 5,
+    "hypothesis": "weight_decay 단일축 정규화 테스트: run 004는 tie_embeddings=True로 validation loss와 final gap을 개선해 best가 되었지만 overfit_score는 여전히 높다. run 004 설정을 유지하고 weight_decay만 0.01에서 0.05로 올리면 train 쪽 과도한 개선을 누그러뜨려 overfit_score와 train_val_improvement_gap을 낮출 수 있다.",
+    "seed": 134,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 64,
+    "stride": null,
+    "batch_size": 8,
+    "max_steps": 40,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.05,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.1,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "gelu",
+    "ffn_dropout_position": "after_output",
+    "attention_impl": "manual",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 8,
+    "hypothesis": "quick_gelu 활성함수 단일축 테스트: tie_embeddings=True 기준선은 seed=151에서 generalizing을 만들었으므로, 같은 설정에서 activation_name만 gelu에서 quick_gelu로 바꾸면 GELU 근사 특성으로 validation 성능을 유지하면서 처리량 또는 overfit_score가 개선될 수 있다.",
+    "seed": 151,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 64,
+    "stride": null,
+    "batch_size": 8,
+    "max_steps": 40,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.1,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "quick_gelu",
+    "ffn_dropout_position": "after_output",
+    "attention_impl": "manual",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

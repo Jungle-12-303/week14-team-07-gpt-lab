@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 35,
+    "hypothesis": "max_steps=80 seed=134 과적합 완화 단일축 테스트: run 034는 seed=134에서 validation loss를 5.554664까지 낮췄지만 final_generalization_gap=0.047536, overfit_score=0.148410으로 overfit_risk가 되었다. 같은 80-step 설정에서 weight_decay만 0.01에서 0.02로 올리면, train loss 과도 개선을 억제해 validation 성능을 유지하면서 gap과 overfit_score를 낮출 수 있는지 확인한다.",
+    "seed": 134,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": null,
+    "batch_size": 8,
+    "max_steps": 80,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.02,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.1,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "quick_gelu",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

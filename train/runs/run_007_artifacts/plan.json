@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 7,
+    "hypothesis": "best 설정 seed 재현성 검증: run 004의 tie_embeddings=True 설정은 현재까지 가장 낮은 final_val_loss와 안정적인 final gap을 보였지만, 아직 seed=134 한 번의 결과다. 구조나 regularization 축을 더 바꾸기 전에 seed만 151로 바꿔도 validation 개선과 gap 완화가 유지되는지 확인한다.",
+    "seed": 151,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 64,
+    "stride": null,
+    "batch_size": 8,
+    "max_steps": 40,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.1,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "gelu",
+    "ffn_dropout_position": "after_output",
+    "attention_impl": "manual",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

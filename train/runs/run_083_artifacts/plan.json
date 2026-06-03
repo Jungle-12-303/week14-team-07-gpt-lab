@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 83,
+    "hypothesis": "run082 showed that shortening mish + seed202 from 90 to 85 steps reduces overfit_score but loses too much validation performance, so the next safer test is to restore max_steps=90 and apply only a gentle weight_decay increase from 0.01 to 0.015. If the small seed202 penalty in run073 is due to train-side over-progress rather than activation choice, this should keep the low final_val_loss near 5.541 while reducing overfit_score without the under-training cost seen in run082.",
+    "seed": 202,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": 24,
+    "batch_size": 8,
+    "max_steps": 90,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.015,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.12,
+    "qkv_bias": false,
+    "ffn_mult": 3,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "mish",
+    "ffn_dropout_position": "none",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]

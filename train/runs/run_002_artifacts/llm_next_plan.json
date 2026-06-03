@@ -1,0 +1,50 @@
+{
+  "hypothesis": "MPS 기준선 재수립: run 001은 max_steps=1 smoke라 과소학습 신호가 강했으므로, Apple Silicon MPS에 맞춘 중간 크기 기준선으로 validation 개선과 gap 안정성을 다시 측정한다.",
+  "rationale": "leaderboard의 유일한 완료 실험은 final_val_loss=6.4218, final_generalization_gap=0.0082, overfit_score=0.0099, fit_status=underfit_or_too_short였다. 이 결과는 모델 구조나 regularization의 한계라기보다 1 step smoke 실행의 영향이 크다. 현재 하드웨어는 mps_balanced로 감지되었으므로 batch_size, context_length, emb_dim을 조금 올리고 max_steps를 40으로 늘려 과적합 이전의 실제 학습 곡선을 확인하는 것이 우선이다.",
+  "changed_variables": {
+    "max_steps": 40,
+    "batch_size": 8,
+    "context_length": 64,
+    "emb_dim": 128,
+    "n_layers": 2,
+    "learning_rate": 0.0003,
+    "seed": 134
+  },
+  "fixed_variables": [
+    "activation_name=gelu",
+    "attention_impl=manual",
+    "ffn_dropout_position=after_output",
+    "drop_rate=0.1",
+    "weight_decay=0.01",
+    "ffn_mult=4",
+    "norm_first=False",
+    "tie_embeddings=False"
+  ],
+  "expected_result": "train/val loss가 함께 더 뚜렷하게 내려가고, final_generalization_gap은 0.05 이하로 유지된다. fit_status가 generalizing 또는 mixed로 바뀌면 이후 seed 반복 또는 activation 교체를 검토한다.",
+  "next_if_success": "같은 설정을 seed만 바꿔 재현성을 확인하거나 quick_gelu/silu처럼 구조를 거의 바꾸지 않는 activation 교체를 한 축씩 실험한다.",
+  "next_if_overfit": "drop_rate를 0.15~0.2로 올리고 weight_decay를 0.05까지 강화하거나 tie_embeddings=True를 적용해 capacity 대비 일반화를 확인한다.",
+  "config_overrides": {
+    "seed": 134,
+    "vocab_size": 600,
+    "context_length": 64,
+    "stride": null,
+    "batch_size": 8,
+    "max_steps": 40,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.1,
+    "qkv_bias": false,
+    "ffn_mult": 4,
+    "norm_first": false,
+    "norm_eps": 0.00001,
+    "activation_name": "gelu",
+    "ffn_dropout_position": "after_output",
+    "attention_impl": "manual",
+    "tie_embeddings": false,
+    "init_std": 0.02
+  }
+}

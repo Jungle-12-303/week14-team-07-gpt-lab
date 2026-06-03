@@ -1,0 +1,31 @@
+[
+  {
+    "run_id": 70,
+    "hypothesis": "seed202의 silu + ffn_mult=3 기준선에서 FFN dropout 위치를 none에서 after_activation으로 바꾸면, run066의 매우 낮은 validation loss는 유지하면서 작은 overfit_score 신호를 더 낮출 수 있다. run069(seed151)는 after_activation이 best를 넘지는 못했지만 overfit_score=0.0과 거의 같은 validation을 유지했으므로, 이번에는 seed202 matched baseline에서 regularization 위치 효과를 재검증한다.",
+    "seed": 202,
+    "vocab_size": 600,
+    "min_frequency": 2,
+    "context_length": 48,
+    "stride": 24,
+    "batch_size": 8,
+    "max_steps": 90,
+    "eval_batches": 4,
+    "train_ratio": 0.9,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "emb_dim": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "drop_rate": 0.12,
+    "qkv_bias": false,
+    "ffn_mult": 3,
+    "norm_first": false,
+    "norm_eps": 1e-05,
+    "activation_name": "silu",
+    "ffn_dropout_position": "after_activation",
+    "attention_impl": "sdpa",
+    "tie_embeddings": true,
+    "init_std": 0.02
+  }
+]
