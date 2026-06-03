@@ -402,6 +402,8 @@ def run_auto_pretraining_experiment(
     patience: int = 3,
     min_delta: float = 0.0,
     eval_iter: int | None = None,
+    vocab_path: str | Path | None = None,
+    use_saved_vocab: bool = True,
     checkpoint_path: str | Path | None = "best_checkpoint.pt",
     seed: int = 123,
     run_tests: bool = False,
@@ -436,8 +438,25 @@ def run_auto_pretraining_experiment(
         from dataset import create_dataloader
 
     train_corpus = corpus if corpus_len is None else corpus[:corpus_len]
+    repo_path = Path(repo_root) if repo_root is not None else Path.cwd()
     tokenizer = BPETokenizer(vocab_size=vocab_size)
-    tokenizer.train(train_corpus)
+
+    if vocab_path is not None:
+        vocab_file = Path(vocab_path)
+    elif use_saved_vocab:
+        vocab_file = repo_path / "data" / "research_vocab" / f"bpe_vocab_{vocab_size}.json"
+    else:
+        vocab_file = None
+
+    if vocab_file is not None and vocab_file.exists():
+        tokenizer.load(vocab_file)
+        print(f"Loaded BPE vocabulary: {vocab_file}")
+    else:
+        tokenizer.train(train_corpus)
+        if vocab_file is not None:
+            vocab_file.parent.mkdir(parents=True, exist_ok=True)
+            tokenizer.save(vocab_file)
+            print(f"Saved BPE vocabulary: {vocab_file}")
 
     token_ids = tokenizer.encode(train_corpus)
     split_idx = int(len(token_ids) * train_ratio)
@@ -588,6 +607,7 @@ def run_auto_pretraining_experiment(
         "best_val_loss": best_val_loss,
         "best_epoch": best_epoch,
         "stopped_reason": stopped_reason,
+        "vocab_path": vocab_file,
         "checkpoint_path": checkpoint,
     }
 
