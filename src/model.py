@@ -50,6 +50,47 @@ class ReLU(nn.Module):
         return torch.relu(x)
 
 
+class GELUExact(nn.Module):
+    """Exact GELU activation."""
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return F.gelu(x, approximate="none")
+
+
+class QuickGELU(nn.Module):
+    """Quick GELU activation."""
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x * torch.sigmoid(1.702 * x)
+
+
+class SquaredReLU(nn.Module):
+    """Squared ReLU activation."""
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return F.relu(x).pow(2)
+
+
+def build_activation(activation_name: str) -> nn.Module:
+    if activation_name == "gelu":
+        return GELU()
+    if activation_name == "gelu_exact":
+        return GELUExact()
+    if activation_name == "quick_gelu":
+        return QuickGELU()
+    if activation_name == "relu":
+        return ReLU()
+    if activation_name == "silu":
+        return nn.SiLU()
+    if activation_name == "mish":
+        return nn.Mish()
+    if activation_name == "squared_relu":
+        return SquaredReLU()
+    if activation_name == "swiglu":
+        return nn.SiLU()
+    raise ValueError(f"Unsupported activation: {activation_name}")
+
+
 class FeedForward(nn.Module):
     """Transformer FFN: Linear -> activation -> Linear -> Dropout."""
 
@@ -58,27 +99,41 @@ class FeedForward(nn.Module):
         d_model: int,
         dropout: float = 0.1,
         mult: int = 4,
-        activation: str = "gelu",
+        activation: str | None = None,
+        activation_name: str | None = None,
+        dropout_position: str = "after_output",
     ):
         super().__init__()
-        hidden_dim = mult * d_model
+        if dropout_position not in {"after_output", "after_activation", "none"}:
+            raise ValueError(f"Unsupported dropout_position: {dropout_position}")
 
-        if activation == "relu":
-            activation_layer = ReLU()
-        elif activation == "gelu":
-            activation_layer = GELU()
+        self.hidden_dim = mult * d_model
+        self.activation_name = activation_name or activation or "gelu"
+        self.dropout_position = dropout_position
+        self.activation = build_activation(self.activation_name)
+        self.dropout = nn.Dropout(dropout) if dropout_position != "none" else None
+        self.is_gated = self.activation_name == "swiglu"
+
+        if self.is_gated:
+            self.value_proj = nn.Linear(d_model, self.hidden_dim)
+            self.gate_proj = nn.Linear(d_model, self.hidden_dim)
         else:
-            raise ValueError(f"Unsupported activation: {activation}")
-
-        self.layers = nn.Sequential(
-            nn.Linear(d_model, hidden_dim),
-            activation_layer,
-            nn.Linear(hidden_dim, d_model),
-            nn.Dropout(dropout),
-        )
+            self.in_proj = nn.Linear(d_model, self.hidden_dim)
+        self.out_proj = nn.Linear(self.hidden_dim, d_model)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.layers(x)
+        if self.is_gated:
+            hidden = self.value_proj(x) * self.activation(self.gate_proj(x))
+        else:
+            hidden = self.activation(self.in_proj(x))
+
+        if self.dropout is not None and self.dropout_position == "after_activation":
+            hidden = self.dropout(hidden)
+
+        out = self.out_proj(hidden)
+        if self.dropout is not None and self.dropout_position == "after_output":
+            out = self.dropout(out)
+        return out
 
 
 class TransformerBlock(nn.Module):
@@ -94,17 +149,28 @@ class TransformerBlock(nn.Module):
         drop_rate: float = 0.1,
         qkv_bias: bool = False,
         activation: str = "gelu",
+        activation_name: str | None = None,
+        ffn_mult: int = 4,
+        ffn_dropout_position: str = "after_output",
+        norm_eps: float = 1e-5,
     ):
         super().__init__()
-        self.ln1 = LayerNorm(d_model)
+        self.ln1 = LayerNorm(d_model, eps=norm_eps)
         self.attn = MultiHeadAttention(
             d_model=d_model,
             n_heads=n_heads,
             drop_rate=drop_rate,
             qkv_bias=qkv_bias,
         )
-        self.ln2 = LayerNorm(d_model)
-        self.ffn = FeedForward(d_model, dropout=drop_rate, activation=activation)
+        self.ln2 = LayerNorm(d_model, eps=norm_eps)
+        self.ffn = FeedForward(
+            d_model,
+            dropout=drop_rate,
+            mult=ffn_mult,
+            activation=activation,
+            activation_name=activation_name,
+            dropout_position=ffn_dropout_position,
+        )
         self.dropout = nn.Dropout(drop_rate)
 
     def forward(self, x: torch.Tensor, causal_mask: bool = True) -> torch.Tensor:
@@ -119,27 +185,40 @@ class GPTModel(nn.Module):
     def __init__(self, config: dict):
         super().__init__()
         self.config = config
+        emb_dim = config["emb_dim"]
+        vocab_size = config["vocab_size"]
+        ffn_mult = config.get("ffn_mult", 4)
+        ffn_dropout_position = config.get("ffn_dropout_position", "after_output")
+        norm_eps = config.get("norm_eps", 1e-5)
+        activation_name = config.get("activation_name", config.get("activation", "gelu"))
 
         self.embedding = InputEmbedding(
-            vocab_size=config["vocab_size"],
-            emb_dim=config["emb_dim"],
+            vocab_size=vocab_size,
+            emb_dim=emb_dim,
             context_length=config["context_length"],
             drop_rate=config["drop_rate"],
         )
+        self.input_embedding = self.embedding
         self.blocks = nn.ModuleList(
             [
                 TransformerBlock(
-                    d_model=config["emb_dim"],
+                    d_model=emb_dim,
                     n_heads=config["n_heads"],
                     drop_rate=config["drop_rate"],
                     qkv_bias=config["qkv_bias"],
-                    activation=config.get("activation", "gelu"),
+                    activation_name=activation_name,
+                    ffn_mult=ffn_mult,
+                    ffn_dropout_position=ffn_dropout_position,
+                    norm_eps=norm_eps,
                 )
                 for _ in range(config["n_layers"])
             ]
         )
-        self.final_norm = LayerNorm(config["emb_dim"])
-        self.lm_head = nn.Linear(config["emb_dim"], config["vocab_size"], bias=False)
+        self.final_norm = LayerNorm(emb_dim, eps=norm_eps)
+        self.lm_head = nn.Linear(emb_dim, vocab_size, bias=False)
+        if config.get("tie_embeddings", False):
+            self.lm_head.weight = self.embedding.token_embedding.weight
+        self.out_head = self.lm_head
 
     def forward(
         self,

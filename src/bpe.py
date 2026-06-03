@@ -34,8 +34,9 @@ class BPETokenizer:
     - 260 이상: BPE merge로 생성한 토큰
     """
 
-    def __init__(self, vocab_size: int = 3000):
+    def __init__(self, vocab_size: int = 3000, min_frequency: int = 1):
         self.vocab_size = vocab_size
+        self.min_frequency = min_frequency
         self.id_to_token = {}
         self.token_to_id = {}
         self.merges = []
@@ -158,7 +159,7 @@ class BPETokenizer:
             else:
                 break
 
-            if -neg_count <= 1:
+            if -neg_count < self.min_frequency:
                 break
 
             merged_token = len(self.id_to_token)
@@ -204,6 +205,7 @@ class BPETokenizer:
         data = {
             "merges": [list(pair) for pair in self.merges],
             "vocab_size": self.vocab_size,
+            "min_frequency": self.min_frequency,
             "id_to_token": {k: serialize_token(v) for k, v in self.id_to_token.items()}
         }
         with open(path, "w", encoding='utf-8') as f:
@@ -217,6 +219,7 @@ class BPETokenizer:
             data = json.load(f)
         self.merges = [tuple(pair) for pair in data['merges']]
         self.vocab_size = data['vocab_size']
+        self.min_frequency = data.get("min_frequency", self.min_frequency)
 
         def deserialize_token(token):
             if isinstance(token, dict):
