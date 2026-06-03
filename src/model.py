@@ -104,7 +104,11 @@ class GPTModel(nn.Module):
         self.drop_emb = nn.Dropout(self.config['drop_rate'])
 
         self.trf_blocks = nn.Sequential(
-            *[TransformerBlock(self.config['emb_dim'], self.config['n_heads']) for _ in range(self.config['n_layers'])]
+            *[TransformerBlock(
+                self.config['emb_dim'], 
+                self.config['n_heads'],
+                drop_rate=self.drop_emb,
+                qkv_bias=self.config['qkv_bias']) for _ in range(self.config['n_layers'])]
         )
 
         self.final_norm = LayerNorm(self.config['emb_dim'])
