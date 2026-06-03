@@ -7,8 +7,9 @@ UTF-8 byte-level BPE 토크나이저 과제 템플릿.
 항상 `text.encode("utf-8")`로 byte ID 시퀀스를 만든 뒤 merge를 적용하세요.
 """
 
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
+import heapq
 import json
 
 
@@ -85,66 +86,105 @@ class BPETokenizer:
         - 새 token ID를 만들고, 시퀀스의 해당 pair를 새 ID로 치환합니다.
         - `self.merges`, `self.id_to_token`, `self.token_to_id`를 갱신합니다.
         """
-        tokens = tuple(BYTE_OFFSET + b for b in corpus.encode("utf-8"))
-        words = Counter({tokens: 1})
+        tokens = [BYTE_OFFSET + b for b in corpus.encode("utf-8")]
+        if len(tokens) < 2:
+            return
 
-        while len(self.id_to_token) < self.vocab_size:
-            # 빈도수 계산을 위한 토큰 쌍
-            pairs = {}
-            for k, v in words.items():
-                for i in range(len(k)-1):
-                    a, b = k[i], k[i+1]
-                    pair = (a, b)
-                    freq = v
-                    if pair in pairs:
-                        pairs[pair] += freq
-                    else:
-                        pairs[pair] = freq
+        prev = [i - 1 for i in range(len(tokens))]
+        next_ = [i + 1 for i in range(len(tokens))]
+        next_[-1] = -1
 
-            if not pairs:
+        pair_counts = Counter()
+        pair_positions = defaultdict(set)
+        pair_position_heaps = defaultdict(list)
+        heap = []
+
+        def pair_at(index):
+            if index == -1 or tokens[index] is None:
+                return None
+            right = next_[index]
+            if right == -1 or tokens[right] is None:
+                return None
+            return (tokens[index], tokens[right])
+
+        def push_pair(pair):
+            count = pair_counts[pair]
+            if count > 0:
+                first_pos = first_position(pair)
+                if first_pos is not None:
+                    heapq.heappush(heap, (-count, first_pos, pair))
+
+        def first_position(pair):
+            positions = pair_position_heaps[pair]
+            active_positions = pair_positions[pair]
+            while positions and positions[0] not in active_positions:
+                heapq.heappop(positions)
+            if not positions:
+                return None
+            return positions[0]
+
+        def add_pair(index):
+            pair = pair_at(index)
+            if pair is None:
+                return
+            pair_counts[pair] += 1
+            pair_positions[pair].add(index)
+            heapq.heappush(pair_position_heaps[pair], index)
+            push_pair(pair)
+
+        def remove_pair(index):
+            pair = pair_at(index)
+            if pair is None or index not in pair_positions[pair]:
+                return
+            pair_positions[pair].remove(index)
+            pair_counts[pair] -= 1
+            if pair_counts[pair] <= 0:
+                del pair_counts[pair]
+            else:
+                push_pair(pair)
+
+        for i in range(len(tokens) - 1):
+            add_pair(i)
+
+        while len(self.id_to_token) < self.vocab_size and heap:
+            while heap:
+                neg_count, first_pos, pair = heapq.heappop(heap)
+                if (
+                    pair_counts.get(pair, 0) == -neg_count
+                    and pair_positions[pair]
+                    and first_position(pair) == first_pos
+                ):
+                    break
+            else:
                 break
 
-            pairs = sorted(pairs.items(), key=lambda x: x[1], reverse=True)
-            if pairs[0][1] == 1:
+            if -neg_count <= 1:
                 break
-            pair = pairs[0][0]
+
             merged_token = len(self.id_to_token)
 
-            # merge
-            new_words = {}
-            for key, value in words.items():
-                old_key = key
-                new_key = []
-                changed = False
-                n = len(key)
-                i = 0
-                while i < n:
-                    if i < n - 1:
-                        comp_tuple = key[i:i+2]
-                        if comp_tuple == pair:
-                            changed = True
-                            new_key.append(merged_token)
-                            i += 1
-                        else:
-                            new_key.append(key[i])
-                    else:
-                        new_key.append(key[i])
-                    i += 1
-                new_key = tuple(new_key)
-                if changed:
-                    if new_key in new_words:
-                        new_words[new_key] += value
-                    else:
-                        new_words[new_key] = value
-                else:
-                    if old_key in new_words:
-                        new_words[old_key] += value
-                    else:
-                        new_words[old_key] = value
+            for left in sorted(pair_positions[pair]):
+                right = next_[left]
+                if right == -1 or pair_at(left) != pair:
+                    continue
+
+                before = prev[left]
+                after = next_[right]
+
+                remove_pair(before)
+                remove_pair(left)
+                remove_pair(right)
+
+                tokens[left] = merged_token
+                tokens[right] = None
+                next_[left] = after
+                if after != -1:
+                    prev[after] = left
+
+                add_pair(before)
+                add_pair(left)
 
             self.merges.append(pair)
-            words = new_words
-
             self.id_to_token[merged_token] = pair
             self.token_to_id[pair] = merged_token
 
