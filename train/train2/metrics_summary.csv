@@ -1,0 +1,1 @@
+run_id,fit_status,risk_level,best_candidate,selection_score,final_train_loss,final_val_loss,final_generalization_gap,generalization_gap_delta,train_val_improvement_gap,overfit_score,parameter_count,tokens_per_sec,device,changed_variables,hypothesis,artifact_dir
