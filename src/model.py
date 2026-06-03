@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""GPT 모델 구성 요소."""
+"""GPT model building blocks."""
 
 import math
 
@@ -16,7 +16,7 @@ except ImportError:
 
 
 class LayerNorm(nn.Module):
-    """마지막 차원 기준 Layer Normalization."""
+    """Layer normalization over the last dimension."""
 
     def __init__(self, normalized_shape: int, eps: float = 1e-5):
         super().__init__()
@@ -32,23 +32,47 @@ class LayerNorm(nn.Module):
 
 
 class GELU(nn.Module):
-    """GPT FeedForward에서 사용하는 GELU 활성화 함수."""
+    """GPT-style GELU activation."""
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return 0.5 * x * (
-            1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * x.pow(3)))
+            1.0
+            + torch.tanh(
+                math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3))
+            )
         )
 
 
-class FeedForward(nn.Module):
-    """Transformer FFN: Linear -> GELU -> Linear -> Dropout."""
+class ReLU(nn.Module):
+    """ReLU activation wrapper used for config-based FFN selection."""
 
-    def __init__(self, d_model: int, dropout: float = 0.1, mult: int = 4):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.relu(x)
+
+
+class FeedForward(nn.Module):
+    """Transformer FFN: Linear -> activation -> Linear -> Dropout."""
+
+    def __init__(
+        self,
+        d_model: int,
+        dropout: float = 0.1,
+        mult: int = 4,
+        activation: str = "gelu",
+    ):
         super().__init__()
         hidden_dim = mult * d_model
+
+        if activation == "relu":
+            activation_layer = ReLU()
+        elif activation == "gelu":
+            activation_layer = GELU()
+        else:
+            raise ValueError(f"Unsupported activation: {activation}")
+
         self.layers = nn.Sequential(
             nn.Linear(d_model, hidden_dim),
-            GELU(),
+            activation_layer,
             nn.Linear(hidden_dim, d_model),
             nn.Dropout(dropout),
         )
@@ -58,7 +82,10 @@ class FeedForward(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    """GPT block: pre-norm causal self-attention and FFN with residuals."""
+    """
+    GPT block: LayerNorm -> Causal Self-Attention -> residual,
+    LayerNorm -> FeedForward -> residual.
+    """
 
     def __init__(
         self,
@@ -66,6 +93,7 @@ class TransformerBlock(nn.Module):
         n_heads: int,
         drop_rate: float = 0.1,
         qkv_bias: bool = False,
+        activation: str = "gelu",
     ):
         super().__init__()
         self.ln1 = LayerNorm(d_model)
@@ -76,7 +104,7 @@ class TransformerBlock(nn.Module):
             qkv_bias=qkv_bias,
         )
         self.ln2 = LayerNorm(d_model)
-        self.ffn = FeedForward(d_model, dropout=drop_rate)
+        self.ffn = FeedForward(d_model, dropout=drop_rate, activation=activation)
         self.dropout = nn.Dropout(drop_rate)
 
     def forward(self, x: torch.Tensor, causal_mask: bool = True) -> torch.Tensor:
@@ -91,6 +119,7 @@ class GPTModel(nn.Module):
     def __init__(self, config: dict):
         super().__init__()
         self.config = config
+
         self.embedding = InputEmbedding(
             vocab_size=config["vocab_size"],
             emb_dim=config["emb_dim"],
@@ -104,6 +133,7 @@ class GPTModel(nn.Module):
                     n_heads=config["n_heads"],
                     drop_rate=config["drop_rate"],
                     qkv_bias=config["qkv_bias"],
+                    activation=config.get("activation", "gelu"),
                 )
                 for _ in range(config["n_layers"])
             ]
@@ -125,7 +155,10 @@ class GPTModel(nn.Module):
         if targets is None:
             return logits
 
-        loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), targets.reshape(-1))
+        loss = F.cross_entropy(
+            logits.reshape(-1, logits.size(-1)),
+            targets.reshape(-1),
+        )
         return loss, logits
 
 
@@ -135,16 +168,11 @@ def generate_text_simple(
     max_new_tokens: int,
     context_size: int,
 ) -> torch.Tensor:
-    """Greedy 방식으로 max_new_tokens만큼 다음 토큰을 이어 붙입니다."""
-    was_training = model.training
-    model.eval()
+    """Greedy decoding으로 max_new_tokens만큼 다음 토큰을 생성합니다."""
     for _ in range(max_new_tokens):
         idx_cond = idx[:, -context_size:]
-        with torch.no_grad():
-            logits = model(idx_cond)
+        logits = model(idx_cond)
         next_token_logits = logits[:, -1, :]
         idx_next = torch.argmax(next_token_logits, dim=-1, keepdim=True)
         idx = torch.cat((idx, idx_next), dim=1)
-    if was_training:
-        model.train()
     return idx

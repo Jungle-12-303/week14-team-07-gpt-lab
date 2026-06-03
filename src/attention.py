@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Multi-Head Self-Attention."""
+"""Multi-Head Self-Attention implementation for GPT."""
 
 import math
 
@@ -8,7 +8,16 @@ import torch.nn as nn
 
 
 class MultiHeadAttention(nn.Module):
-    """GPT causal self-attention."""
+    """
+    GPT용 causal self-attention을 구현합니다.
+
+    구현할 핵심 단계:
+    - Q/K/V projection
+    - head 분리: (B, T, C) -> (B, n_heads, T, head_dim)
+    - attention score = QK^T / sqrt(head_dim)
+    - causal mask로 미래 토큰 가리기
+    - attention weight와 V를 곱한 뒤 head를 다시 합치기
+    """
 
     def __init__(
         self,
@@ -37,35 +46,40 @@ class MultiHeadAttention(nn.Module):
         causal_mask: bool = True,
         return_attention_weights: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
-        if x.ndim != 3:
-            raise ValueError("MultiHeadAttention input must have shape (B, T, C)")
+        """
+        multi-head attention forward를 구현합니다.
 
-        batch_size, seq_len, d_model = x.shape
-        if d_model != self.d_model:
-            raise ValueError(f"Expected d_model={self.d_model}, got {d_model}")
+        Args:
+            x: (batch_size, seq_len, d_model)
+            causal_mask: True이면 미래 위치를 보지 못하게 mask 처리
+            return_attention_weights: True이면 attention weight도 함께 반환
+        """
+        batch_size, seq_len, _ = x.shape
 
-        q = self.q_proj(x).view(batch_size, seq_len, self.n_heads, self.head_dim)
-        k = self.k_proj(x).view(batch_size, seq_len, self.n_heads, self.head_dim)
-        v = self.v_proj(x).view(batch_size, seq_len, self.n_heads, self.head_dim)
+        q = self.q_proj(x)
+        k = self.k_proj(x)
+        v = self.v_proj(x)
 
-        q = q.transpose(1, 2)
-        k = k.transpose(1, 2)
-        v = v.transpose(1, 2)
+        q = q.view(batch_size, seq_len, self.n_heads, self.head_dim).transpose(1, 2)
+        k = k.view(batch_size, seq_len, self.n_heads, self.head_dim).transpose(1, 2)
+        v = v.view(batch_size, seq_len, self.n_heads, self.head_dim).transpose(1, 2)
 
-        scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.head_dim)
+        attn_scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.head_dim)
+
         if causal_mask:
             mask = torch.triu(
                 torch.ones(seq_len, seq_len, device=x.device, dtype=torch.bool),
                 diagonal=1,
             )
-            scores = scores.masked_fill(mask, float("-inf"))
+            attn_scores = attn_scores.masked_fill(mask, float("-inf"))
 
-        attention_weights = torch.softmax(scores, dim=-1)
-        attention_probs = self.dropout(attention_weights)
-        context = torch.matmul(attention_probs, v)
+        attn_weights = torch.softmax(attn_scores, dim=-1)
+        attn_probs = self.dropout(attn_weights)
+
+        context = torch.matmul(attn_probs, v)
         context = context.transpose(1, 2).contiguous().view(batch_size, seq_len, self.d_model)
         out = self.out_proj(context)
 
         if return_attention_weights:
-            return out, attention_weights
+            return out, attn_weights
         return out
