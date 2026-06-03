@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import math
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 import torch
@@ -275,6 +277,318 @@ def train_model(
         "train_losses": train_losses,
         "test_losses": test_losses,
         "val_losses": test_losses,
+    }
+
+
+def run_pytest_before_training(
+    repo_root: str | Path | None = None,
+    test_paths: list[str] | tuple[str, ...] | None = None,
+) -> None:
+    """Run project tests before a notebook training experiment."""
+
+    repo_path = Path(repo_root) if repo_root is not None else Path.cwd()
+    selected_tests = list(
+        test_paths
+        if test_paths is not None
+        else (
+            "tests/test_bpe.py",
+            "tests/test_dataset.py",
+            "tests/test_attention.py",
+            "tests/test_model.py",
+            "tests/test_train.py",
+        )
+    )
+    command = [sys.executable, "-m", "pytest", *selected_tests, "-v"]
+
+    print("Running tests before training:")
+    print(" ".join(command))
+    result = subprocess.run(
+        command,
+        cwd=str(repo_path),
+        text=True,
+        capture_output=True,
+    )
+    if result.stdout:
+        print(result.stdout)
+    if result.stderr:
+        print(result.stderr)
+    if result.returncode != 0:
+        raise RuntimeError("pytest failed. Fix tests before training.")
+
+    print("pytest passed. Starting training.")
+
+
+def get_performance_hypotheses() -> list[dict[str, str]]:
+    """Return short experiment ideas for notebook reporting."""
+
+    return [
+        {
+            "experiment": "vocab_size 3000 -> 1000/2000",
+            "hypothesis": "A smaller corpus may train more stably with fewer BPE tokens.",
+            "expected": "Fewer broken-looking generations and faster token learning.",
+        },
+        {
+            "experiment": "n_layers 1 -> 2",
+            "hypothesis": "One transformer block may be too weak for language patterns.",
+            "expected": "Lower validation loss if overfitting is controlled.",
+        },
+        {
+            "experiment": "n_heads 1 -> 2/4",
+            "hypothesis": "More heads can split attention into different relation types.",
+            "expected": "Better context use when emb_dim is large enough.",
+        },
+        {
+            "experiment": "dropout 0.0 -> 0.1",
+            "hypothesis": "No dropout can overfit small corpora quickly.",
+            "expected": "Validation loss may become more stable.",
+        },
+        {
+            "experiment": "corpus_len 10000 -> 50000+",
+            "hypothesis": "The model needs more examples to learn Korean byte/BPE patterns.",
+            "expected": "Better generation quality and lower validation loss.",
+        },
+        {
+            "experiment": "learning_rate 3e-4 -> 1e-4/5e-4",
+            "hypothesis": "The chosen learning rate may be too slow or too unstable.",
+            "expected": "Find a setting where train and validation loss decrease together.",
+        },
+    ]
+
+
+def print_loss_history(history: list[dict[str, float | int]]) -> None:
+    """Print epoch-level train/validation losses as a simple table."""
+
+    print("epoch | train_loss | val_loss | gap | overfit_count")
+    print("----- | ---------- | -------- | --- | -------------")
+    for row in history:
+        print(
+            f"{int(row['epoch']):5d} | "
+            f"{float(row['train_loss']):.4f} | "
+            f"{float(row['val_loss']):.4f} | "
+            f"{float(row['gap']):.4f} | "
+            f"{int(row['overfit_count'])}"
+        )
+
+
+def print_performance_hypotheses(
+    hypotheses: list[dict[str, str]] | None = None,
+) -> None:
+    """Print experiment ideas as a simple Markdown-style table."""
+
+    rows = hypotheses if hypotheses is not None else get_performance_hypotheses()
+    print("experiment | hypothesis | expected")
+    print("---------- | ---------- | --------")
+    for row in rows:
+        print(f"{row['experiment']} | {row['hypothesis']} | {row['expected']}")
+
+
+def run_auto_pretraining_experiment(
+    corpus: str,
+    device: str | torch.device = "cpu",
+    corpus_len: int | None = 10000,
+    vocab_size: int = 3000,
+    context_length: int = 64,
+    emb_dim: int = 64,
+    n_heads: int = 1,
+    n_layers: int = 1,
+    drop_rate: float = 0.0,
+    activation: str = "relu",
+    num_epochs: int = 20,
+    batch_size: int = 32,
+    train_ratio: float = 0.9,
+    stride: int | None = None,
+    lr: float = 3e-4,
+    weight_decay: float = 0.01,
+    patience: int = 3,
+    min_delta: float = 0.0,
+    eval_iter: int | None = None,
+    checkpoint_path: str | Path | None = "best_checkpoint.pt",
+    seed: int = 123,
+    run_tests: bool = False,
+    test_paths: list[str] | tuple[str, ...] | None = None,
+    repo_root: str | Path | None = None,
+) -> dict[str, object]:
+    """Run a small notebook-friendly GPT pretraining experiment.
+
+    The helper trains a BPE tokenizer, splits token ids into train/validation
+    loaders, records epoch-level losses, saves the best checkpoint, and stops
+    early when validation loss stops improving while train loss keeps falling.
+    """
+
+    if run_tests:
+        run_pytest_before_training(repo_root=repo_root, test_paths=test_paths)
+
+    if not 0.0 < train_ratio < 1.0:
+        raise ValueError("train_ratio must be between 0 and 1.")
+    if context_length <= 0:
+        raise ValueError("context_length must be positive.")
+    if num_epochs <= 0:
+        raise ValueError("num_epochs must be positive.")
+
+    torch.manual_seed(seed)
+    device_obj = torch.device(device)
+
+    try:
+        from .bpe import BPETokenizer
+        from .dataset import create_dataloader
+    except ImportError:
+        from bpe import BPETokenizer
+        from dataset import create_dataloader
+
+    train_corpus = corpus if corpus_len is None else corpus[:corpus_len]
+    tokenizer = BPETokenizer(vocab_size=vocab_size)
+    tokenizer.train(train_corpus)
+
+    token_ids = tokenizer.encode(train_corpus)
+    split_idx = int(len(token_ids) * train_ratio)
+    train_token_ids = token_ids[:split_idx]
+    val_token_ids = token_ids[split_idx:]
+
+    min_tokens = context_length + 1
+    if len(train_token_ids) < min_tokens or len(val_token_ids) < min_tokens:
+        raise ValueError(
+            "Not enough tokens for train/validation split. "
+            "Increase corpus_len or reduce context_length. "
+            f"Got train_tokens={len(train_token_ids)}, "
+            f"val_tokens={len(val_token_ids)}, required_each={min_tokens}."
+        )
+
+    train_loader = create_dataloader(
+        train_token_ids,
+        context_length=context_length,
+        batch_size=batch_size,
+        stride=stride,
+        shuffle=True,
+        drop_last=False,
+    )
+    val_loader = create_dataloader(
+        val_token_ids,
+        context_length=context_length,
+        batch_size=batch_size,
+        stride=stride,
+        shuffle=False,
+        drop_last=False,
+    )
+
+    config = {
+        "vocab_size": len(tokenizer.id_to_token),
+        "context_length": context_length,
+        "emb_dim": emb_dim,
+        "n_heads": n_heads,
+        "n_layers": n_layers,
+        "drop_rate": drop_rate,
+        "qkv_bias": False,
+        "activation": activation,
+    }
+    model = GPTModel(config).to(device_obj)
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=lr,
+        weight_decay=weight_decay,
+    )
+
+    best_val_loss = float("inf")
+    best_epoch = 0
+    overfit_count = 0
+    previous_train_loss: float | None = None
+    global_step = 0
+    history: list[dict[str, float | int]] = []
+    stopped_reason = "max_epochs completed"
+
+    checkpoint = Path(checkpoint_path) if checkpoint_path is not None else None
+    if checkpoint is not None and checkpoint.parent != Path(""):
+        checkpoint.parent.mkdir(parents=True, exist_ok=True)
+
+    for epoch in range(1, num_epochs + 1):
+        model.train()
+        total_loss = 0.0
+        num_batches = 0
+
+        for input_batch, target_batch in train_loader:
+            optimizer.zero_grad()
+            loss = calc_loss_batch(input_batch, target_batch, model, device_obj)
+            loss.backward()
+            optimizer.step()
+
+            total_loss += loss.item()
+            num_batches += 1
+            global_step += 1
+
+        train_loss = total_loss / max(num_batches, 1)
+        val_loss = calc_loss_loader(
+            val_loader,
+            model,
+            device_obj,
+            num_batches=eval_iter,
+        )
+        gap = val_loss - train_loss
+
+        improved = val_loss < best_val_loss - min_delta
+        if improved:
+            best_val_loss = val_loss
+            best_epoch = epoch
+            overfit_count = 0
+            if checkpoint is not None:
+                save_checkpoint(
+                    model=model,
+                    optimizer=optimizer,
+                    epoch=epoch,
+                    global_step=global_step,
+                    path=str(checkpoint),
+                )
+        else:
+            train_loss_decreased = (
+                previous_train_loss is not None
+                and train_loss < previous_train_loss
+            )
+            if train_loss_decreased:
+                overfit_count += 1
+            else:
+                overfit_count = 0
+
+        previous_train_loss = train_loss
+        history.append(
+            {
+                "epoch": epoch,
+                "train_loss": train_loss,
+                "val_loss": val_loss,
+                "gap": gap,
+                "overfit_count": overfit_count,
+            }
+        )
+
+        print(
+            f"Epoch {epoch:02d}: "
+            f"train_loss={train_loss:.4f}, "
+            f"val_loss={val_loss:.4f}, "
+            f"gap={gap:.4f}, "
+            f"overfit_count={overfit_count}"
+        )
+
+        if overfit_count >= patience:
+            stopped_reason = "early stopping: possible overfitting"
+            break
+
+    print_loss_history(history)
+    print_performance_hypotheses()
+    print(f"Stopped reason: {stopped_reason}")
+    print(f"Best val loss: {best_val_loss:.4f} at epoch {best_epoch}")
+
+    if checkpoint is not None and checkpoint.exists():
+        load_checkpoint(model, optimizer, str(checkpoint), device_obj)
+
+    return {
+        "model": model,
+        "tokenizer": tokenizer,
+        "config": config,
+        "optimizer": optimizer,
+        "train_loader": train_loader,
+        "val_loader": val_loader,
+        "history": history,
+        "best_val_loss": best_val_loss,
+        "best_epoch": best_epoch,
+        "stopped_reason": stopped_reason,
+        "checkpoint_path": checkpoint,
     }
 
 
