@@ -1,71 +1,44 @@
-# mini GPT 자동 학습 실험 루프
+# train workspace
 
-이 폴더는 Codex 자동화가 반복적으로 가설을 세우고, 한 회차 실험을 실행하고, 결과를 분석한 뒤 다음 가설을 남기기 위한 작업 공간입니다.
+이 브랜치의 `train/`은 **새 실험을 위한 최소 작업공간**만 남깁니다.
 
-## 현재 하드웨어 요약
+핵심 원칙:
 
-```json
-{
-  "timestamp": "2026-06-03T04:14:28+00:00",
-  "hostname": "woonyong-MacBookPro.local",
-  "platform": "macOS-26.3.1-arm64-arm-64bit-Mach-O",
-  "machine": "arm64",
-  "python": "3.13.13",
-  "torch": "2.12.0",
-  "cpu_count": 10,
-  "memory_gb": 24.0,
-  "cuda_available": false,
-  "cuda_device_count": 0,
-  "mps_available": true,
-  "resolved_device": "mps",
-  "profile": "mps_balanced"
-}
-```
+- 과거 실험 아카이브와 리포트는 포함하지 않습니다.
+- 앞으로의 실험 로그와 아티팩트는 `train/train2/` 아래에 쌓습니다.
+- 기본 기준선은 [train2/base_config.json](./train2/base_config.json)에서 시작합니다.
 
-## 실행 방식
+## 주요 경로
 
-자동화는 몇 분마다 다음 명령을 실행합니다.
+- [train2/README.md](./train2/README.md): 새 실험 작업공간 안내
+- [train2/base_config.json](./train2/base_config.json): 새 기준선 설정
+- [train2/hypotheses.md](./train2/hypotheses.md): 앞으로의 가설 기록
+- `train2/runs/`: 새 실험 리포트/요약 저장 위치
+- `train2/replays/`: dense replay 산출물 저장 위치
+- `train2/visuals/`: 새 비교 그래프 저장 위치
+
+## Historical Replay
+
+historical `plan.json`을 현재 코드로 다시 실행하면서 step/epoch 단위 raw 로그를 남기려면 아래 스크립트를 사용합니다.
 
 ```bash
-python -m src.train_loop_agent
+python train/replay_historical_run.py \
+  --run-id 21 \
+  --text-file data/nsmc_lm_train_small.txt
 ```
 
-각 실행은 다음 순서로 동작합니다.
+기본 출력 경로는 `train/train2/replays/`입니다.
 
-1. `docs/train/state.json`을 읽는다.
-2. `docs/train/.train_loop.lock`이 살아 있으면 진행 중으로 보고 종료한다.
-3. 직전 결과와 leaderboard를 분석한다.
-4. Codex/LLM이 작성한 `next_plan.json`이 있으면 그 가설을 우선 사용하고, 없으면 규칙 기반 fallback으로 다음 가설과 설정을 만든다.
-5. 한 회차 실험을 실행한다.
-6. `docs/train/runs/run_XXX.md` 보고서를 쓴다.
-7. `docs/train/leaderboard.csv`와 `docs/train/hypotheses.md`를 갱신한다.
-8. `docs/train/dashboard.md`와 `docs/train/visuals/`의 시각 지표를 갱신한다.
+생성되는 주요 산출물:
 
-## 결과 해석 기준
-
-- `final_val_loss`가 낮을수록 좋다.
-- `final_generalization_gap = final_val_loss - final_train_loss`가 커지면 과적합 위험이다.
-- `overfit_score`는 낮을수록 좋다.
-- `fit_status == "generalizing"`이면 다음에는 seed 반복으로 재현성을 확인한다.
-- `fit_status == "overfit_risk"`이면 dropout, weight decay, tying, 모델 축소를 우선한다.
-
-## 시각화
-
-- `dashboard.md`: loss, generalization gap, overfit_score를 한 화면에서 보는 요약 대시보드
-- `metrics_summary.csv`: 시각화와 해석에 쓰는 정규화된 지표 테이블
-- `visuals/loss_overfit_trends.svg`: 모든 run의 train/val loss와 과적합 신호 추세
-- `visuals/latest_run_metrics.svg`: 최신 run의 loss와 과적합 신호 막대 그래프
-- `runs/run_XXX_artifacts/run_metrics.svg`: 각 회차 보고서에 포함되는 run별 상세 그래프
-
-## 주요 파일
-
-- `state.json`: 현재 상태와 best run
-- `leaderboard.csv`: 모든 완료 실험 요약
-- `metrics_summary.csv`: 주요 loss/과적합 지표 요약
-- `dashboard.md`: 사람이 바로 볼 수 있는 시각 대시보드
-- `visuals/`: SVG 그래프
-- `hypotheses.md`: 가설과 결론 누적 기록
-- `runs/run_XXX.md`: 회차별 보고서
-- `runs/run_XXX_artifacts/`: 해당 실험의 plan/result 파일
-- `next_plan.json`: Codex/LLM이 자유롭게 세운 다음 가설. 실행되면 해당 run artifact로 이동한다.
-- `next_plan.schema.json`: `next_plan.json` 작성 형식
+- `step_history.csv/jsonl`
+- `eval_history.csv/jsonl`
+- `epoch_history.csv/jsonl`
+- `step_loss_curve.svg`
+- `step_perplexity_curve.svg`
+- `step_generalization_gap.svg`
+- `epoch_loss_curve.svg`
+- `epoch_perplexity_curve.svg`
+- `epoch_generalization_gap.svg`
+- `run_metrics.svg`
+- `checkpoint.pt`

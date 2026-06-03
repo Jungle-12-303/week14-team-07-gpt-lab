@@ -1,8 +1,13 @@
 # -*- coding: utf-8 -*-
-"""GPT 모델 구성 요소 과제 템플릿."""
+"""GPT model components."""
+
+from __future__ import annotations
+
+import math
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 try:
     from .attention import MultiHeadAttention
@@ -11,107 +16,119 @@ except ImportError:
     from attention import MultiHeadAttention
     from embeddings import InputEmbedding
 
-"""
-호출 흐름 요약
-
-GPTModel.forward
- -> InputEmbedding.forward
- -> TransformerBlock.forward (n번 반복)
-    -> LayerNorm.forward
-    -> MultiHeadAttention.forward
-    -> LayerNorm.forward
-    -> FeedForward.forward
-       -> GELU.forward
- -> LayerNorm.forward (final_norm)
- -> out_head
- -> optional: cross_entropy
-
-"""
-
 
 class LayerNorm(nn.Module):
-    """마지막 차원 기준 Layer Normalization."""
-    
-    # 마지막 차원 크기: normalized_shape, 보정값: eps
+    """Layer normalization over the last dimension."""
+
     def __init__(self, normalized_shape: int, eps: float = 1e-5):
         super().__init__()
-        # 정규화된 각 feature 값을 다시 얼마나 크게/작게 쓸지 조절하는 학습 가능한 스케일 파라미터
         self.gamma = nn.Parameter(torch.ones(normalized_shape))
-        # 정규화된 각 feature 값에 더해지는 학습 가능한 이동값(offset)
         self.beta = nn.Parameter(torch.zeros(normalized_shape))
-        self.eps = eps # 분산이 0에 가까울 때 나누기 오류를 막는 작은 값
+        self.eps = eps
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """ 마지막 차원의 평균과 분산으로 정규화한 뒤 gamma/beta를 적용합니다."""
         mean = x.mean(dim=-1, keepdim=True)
         var = x.var(dim=-1, keepdim=True, unbiased=False)
         normalized = (x - mean) / torch.sqrt(var + self.eps)
         return self.gamma * normalized + self.beta
 
-# GELU 활성화 함수를 tanh 근사식으로 계산해 반환
+
 class GELU(nn.Module):
-    """GPT FeedForward에서 사용하는 GELU 활성화 함수."""
+    """Approximate GELU with tanh, matching historical mini-GPT behavior."""
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """ tanh 근사식 또는 torch 연산으로 GELU를 구현합니다."""
-        return 0.5 * x * (
-            1.0
-            + torch.tanh(
-                torch.sqrt(torch.tensor(2.0 / torch.pi, device=x.device, dtype=x.dtype))
-                * (x + 0.044715 * x.pow(3))
-            )
-        )
+        return F.gelu(x, approximate="tanh")
 
 
 class GELUExact(nn.Module):
-    """정확한 GELU 활성화 함수."""
+    """Exact GELU."""
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return 0.5 * x * (1.0 + torch.erf(x / torch.sqrt(torch.tensor(2.0, device=x.device, dtype=x.dtype))))
+        return F.gelu(x, approximate="none")
 
 
 class QuickGELU(nn.Module):
-    """Quick GELU 활성화 함수."""
+    """Quick GELU used by CLIP-like models."""
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x * torch.sigmoid(1.702 * x)
 
 
+class SquaredReLU(nn.Module):
+    """Squared ReLU."""
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return F.relu(x).pow(2)
+
+
 def build_activation(activation_name: str) -> nn.Module:
-    """설정 문자열에 맞는 활성화 함수를 생성합니다."""
+    """Construct a supported FFN activation module."""
+
     if activation_name == "gelu":
         return GELU()
     if activation_name == "gelu_exact":
         return GELUExact()
     if activation_name == "quick_gelu":
         return QuickGELU()
+    if activation_name == "silu":
+        return nn.SiLU()
+    if activation_name == "mish":
+        return nn.Mish()
+    if activation_name == "squared_relu":
+        return SquaredReLU()
+    if activation_name == "swiglu":
+        return nn.SiLU()
     raise ValueError(f"Unsupported activation_name: {activation_name}")
 
-# FFN : Feed-Forward Network
-# 입력 x를 FFN 전체에 통과시켜 결과를 반환 <= 설명이 이게 다임?
-class FeedForward(nn.Module):
-    """Transformer FFN: Linear -> GELU -> Linear -> Dropout."""
 
-    def __init__(self, d_model: int, dropout: float = 0.1, mult: int = 4, activation_name: str = "gelu"):
+class FeedForward(nn.Module):
+    """Transformer FFN with historical activation/dropout variants."""
+
+    def __init__(
+        self,
+        d_model: int,
+        dropout: float = 0.1,
+        mult: int = 4,
+        activation_name: str = "gelu",
+        dropout_position: str = "after_output",
+    ):
         super().__init__()
-        hidden_dim = mult * d_model
-        self.layers = nn.Sequential(
-            nn.Linear(d_model, hidden_dim),
-            build_activation(activation_name),
-            nn.Linear(hidden_dim, d_model), # 입력 차원을 더 큰 히든 차원으로 확장
-            nn.Dropout(dropout),
-        )
+        if dropout_position not in {"after_output", "after_activation", "none"}:
+            raise ValueError(f"Unsupported dropout_position: {dropout_position}")
+
+        self.hidden_dim = mult * d_model
+        self.activation_name = activation_name
+        self.dropout_position = dropout_position
+        self.activation = build_activation(activation_name)
+        self.dropout = nn.Dropout(dropout) if dropout_position != "none" else None
+        self.is_gated = activation_name == "swiglu"
+
+        if self.is_gated:
+            self.value_proj = nn.Linear(d_model, self.hidden_dim)
+            self.gate_proj = nn.Linear(d_model, self.hidden_dim)
+        else:
+            self.in_proj = nn.Linear(d_model, self.hidden_dim)
+        self.out_proj = nn.Linear(self.hidden_dim, d_model)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """ FeedForward 네트워크를 통과시킵니다."""
-        return self.layers(x)
+        if self.is_gated:
+            hidden = self.value_proj(x) * self.activation(self.gate_proj(x))
+        else:
+            hidden = self.activation(self.in_proj(x))
+
+        if self.dropout is not None and self.dropout_position == "after_activation":
+            hidden = self.dropout(hidden)
+
+        out = self.out_proj(hidden)
+
+        if self.dropout is not None and self.dropout_position == "after_output":
+            out = self.dropout(out)
+
+        return out
 
 
 class TransformerBlock(nn.Module):
-    """
-    GPT block: LayerNorm -> Causal Self-Attention -> residual,
-    LayerNorm -> FeedForward -> residual.
-    """
+    """Attention + FFN block with configurable pre/post-norm behavior."""
 
     def __init__(
         self,
@@ -121,45 +138,50 @@ class TransformerBlock(nn.Module):
         qkv_bias: bool = False,
         pre_norm: bool = True,
         activation_name: str = "gelu",
+        ffn_mult: int = 4,
+        ffn_dropout_position: str = "after_output",
+        attention_impl: str = "manual",
+        norm_eps: float = 1e-5,
     ):
         super().__init__()
-        self.pre_norm = pre_norm # pre-norm 방식인지 post-norm 방식인지 저장
-        self.norm1 = LayerNorm(d_model) # attention 앞/뒤에 쓸 첫 번째 LayerNorm 생성
-        self.attention = MultiHeadAttention( # 멀티헤드 어텐션 모듈 생성
+        self.pre_norm = pre_norm
+        self.norm1 = LayerNorm(d_model, eps=norm_eps)
+        self.attention = MultiHeadAttention(
             d_model=d_model,
             n_heads=n_heads,
             drop_rate=drop_rate,
             qkv_bias=qkv_bias,
+            attention_impl=attention_impl,
         )
-        self.norm2 = LayerNorm(d_model) # FFN 앞/뒤에 쓸 두 번째 LayerNorm 생성
-        self.ffn = FeedForward(d_model=d_model, dropout=drop_rate, activation_name=activation_name) # FFN 모듈 생성
+        self.norm2 = LayerNorm(d_model, eps=norm_eps)
+        self.ffn = FeedForward(
+            d_model=d_model,
+            dropout=drop_rate,
+            mult=ffn_mult,
+            activation_name=activation_name,
+            dropout_position=ffn_dropout_position,
+        )
 
     def forward(self, x: torch.Tensor, causal_mask: bool = True) -> torch.Tensor:
-        """pre-norm/post-norm 설정에 따라 attention과 FFN을 residual로 연결합니다."""
-        if self.pre_norm: # 입력 x를 먼저 정규화한 뒤 attention
+        if self.pre_norm:
             attn_out = self.attention(self.norm1(x), causal_mask=causal_mask)
             x = x + attn_out
-            ffn_out = self.ffn(self.norm2(x)) # x를 FFN에 넣기
-            x = x + ffn_out
-            return x
+            ffn_out = self.ffn(self.norm2(x))
+            return x + ffn_out
 
-        # 정규화 없이 attention을 먼저 수행 후, residual로 더한 뒤 정규화
         attn_out = self.attention(x, causal_mask=causal_mask)
         x = self.norm1(x + attn_out)
         ffn_out = self.ffn(x)
-        x = self.norm2(x + ffn_out)
-        return x
+        return self.norm2(x + ffn_out)
 
 
 class GPTModel(nn.Module):
-    """InputEmbedding -> TransformerBlock N개 -> LayerNorm -> LM head."""
+    """InputEmbedding -> TransformerBlock N -> LayerNorm -> LM head."""
 
     def __init__(self, config: dict):
         super().__init__()
-        self.config = config # 설정 딕셔너리를 저장
+        self.config = dict(config)
 
-        # embedding, blocks, final layernorm, lm_head를 정의하세요.
-        # 설정값들을 변수로 꺼내기 / config 항목은 test_model.py의 GPT_CONFIG_SMALL를 참고
         vocab_size = config["vocab_size"]
         emb_dim = config["emb_dim"]
         context_length = config["context_length"]
@@ -167,65 +189,77 @@ class GPTModel(nn.Module):
         n_heads = config["n_heads"]
         qkv_bias = config["qkv_bias"]
         n_layers = config["n_layers"]
-        pre_norm = config.get("pre_norm", True)
+        pre_norm = config.get("pre_norm", config.get("norm_first", True))
         activation_name = config.get("activation_name", "gelu")
-        
-        # 토큰 ID를 입력 임베딩 벡터로 바꾸는 모듈 생성
-        self.input_embedding = InputEmbedding(vocab_size, emb_dim,context_length, drop_rate)
+        ffn_mult = config.get("ffn_mult", 4)
+        ffn_dropout_position = config.get("ffn_dropout_position", "after_output")
+        attention_impl = config.get("attention_impl", "manual")
+        tie_embeddings = config.get("tie_embeddings", False)
+        init_std = config.get("init_std", 0.02)
+        norm_eps = config.get("norm_eps", 1e-5)
 
-        # TransformerBlock 을 n_layers개 생성 후 저장
-        # nn.ModuleList: 파이토치에서 사용되는 서브 모듈들을 리스트 형태로 관리하는 클래스. 모듈 저장만. 자동실행X
-        # nn.Sequential: 모듈 저장하고, x를 넣으면 순서대로 자동 호출
+        self.input_embedding = InputEmbedding(
+            vocab_size=vocab_size,
+            emb_dim=emb_dim,
+            context_length=context_length,
+            drop_rate=drop_rate,
+        )
         self.trf_blocks = nn.ModuleList(
             [
                 TransformerBlock(
-                    emb_dim,
-                    n_heads,
-                    drop_rate,
-                    qkv_bias,
+                    d_model=emb_dim,
+                    n_heads=n_heads,
+                    drop_rate=drop_rate,
+                    qkv_bias=qkv_bias,
                     pre_norm=pre_norm,
                     activation_name=activation_name,
+                    ffn_mult=ffn_mult,
+                    ffn_dropout_position=ffn_dropout_position,
+                    attention_impl=attention_impl,
+                    norm_eps=norm_eps,
                 )
-                for _ in range(n_layers) # 직접 호출
+                for _ in range(n_layers)
             ]
         )
-    
-        self.final_norm = LayerNorm(emb_dim) # 마지막 hidden state를 정규화할 LayerNorm로 만들기
-        # 마지막 hidden state를 vocab 크기의 logits로 바꾸는 출력층
+        self.final_norm = LayerNorm(emb_dim, eps=norm_eps)
         self.out_head = nn.Linear(emb_dim, vocab_size, bias=False)
+        self.tie_embeddings = tie_embeddings
 
+        self._reset_parameters(init_std)
+        if tie_embeddings:
+            self.out_head.weight = self.input_embedding.token_embedding.weight
+
+    def _reset_parameters(self, init_std: float) -> None:
+        for module in self.modules():
+            if isinstance(module, nn.Linear):
+                nn.init.normal_(module.weight, mean=0.0, std=init_std)
+                if module.bias is not None:
+                    nn.init.zeros_(module.bias)
+            elif isinstance(module, nn.Embedding):
+                nn.init.normal_(module.weight, mean=0.0, std=init_std)
+            elif isinstance(module, LayerNorm):
+                nn.init.ones_(module.gamma)
+                nn.init.zeros_(module.beta)
 
     def forward(
         self,
         idx: torch.Tensor,
         targets: torch.Tensor | None = None,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
-        """
-         logits를 만들고, targets가 있으면 cross entropy loss도 함께 반환합니다.
-
-        Returns:
-            targets가 None이면 logits
-            targets가 있으면 (loss, logits)
-        """
-        x = self.input_embedding(idx) # 입력 토큰 ID를 임베딩 벡터로
-
-        # 각 트랜스포머 블록을 순서대로 통과시키며 x를 계속 업데이트
+        x = self.input_embedding(idx)
         for block in self.trf_blocks:
             x = block(x, causal_mask=True)
+        x = self.final_norm(x)
+        logits = self.out_head(x)
 
-        x = self.final_norm(x) # 모든 블록을 지난 결과를 마지막으로 정규화
-        logits = self.out_head(x) # 각 위치의 hidden state를 vocab 점수(logits)로 변환
-
-        if targets is None: # 정답 토큰이 없으면 logits만 반환
+        if targets is None:
             return logits
 
-        # (batch, seq, vocab) 형태의 logits와 (batch, seq) 형태의 targets를 
-        # 2차원/1차원으로 펴서 cross entropy loss를 계산
-        loss = nn.functional.cross_entropy(
+        loss = F.cross_entropy(
             logits.view(-1, logits.size(-1)),
             targets.view(-1),
         )
-        return loss, logits # 학습용으로는 loss, 출력 해석/예측용으로는 logits
+        return loss, logits
 
 
 def generate_text_simple(
@@ -234,11 +268,17 @@ def generate_text_simple(
     max_new_tokens: int,
     context_size: int,
 ) -> torch.Tensor:
-    """TODO: greedy 방식으로 max_new_tokens만큼 다음 토큰을 이어 붙입니다."""
-    for _ in range(max_new_tokens):
-        idx_cond = idx[:, -context_size:]
-        logits = model(idx_cond)
-        next_token_logits = logits[:, -1, :]
-        next_token = torch.argmax(next_token_logits, dim=-1, keepdim=True)
-        idx = torch.cat((idx, next_token), dim=1)
+    """Greedy text generation helper."""
+
+    was_training = model.training
+    model.eval()
+    with torch.no_grad():
+        for _ in range(max_new_tokens):
+            idx_cond = idx[:, -context_size:]
+            logits = model(idx_cond)
+            next_token_logits = logits[:, -1, :]
+            next_token = torch.argmax(next_token_logits, dim=-1, keepdim=True)
+            idx = torch.cat((idx, next_token), dim=1)
+    if was_training:
+        model.train()
     return idx

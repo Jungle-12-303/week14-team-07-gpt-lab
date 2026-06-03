@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
-"""GPT 사전 학습 유틸리티 과제 템플릿."""
+"""Training utilities for mini GPT."""
 
+from __future__ import annotations
+
+import math
 import os
-import torch
 from pathlib import Path
+
+import torch
+import torch.nn as nn
 
 try:
     from .model import GPTModel
@@ -17,7 +22,8 @@ def calc_loss_batch(
     model: GPTModel,
     device: torch.device,
 ) -> torch.Tensor:
-    """TODO: 한 배치를 device로 옮긴 뒤 다음 토큰 예측 cross entropy loss를 계산합니다."""
+    """Compute next-token cross-entropy for one batch."""
+
     input_batch = input_batch.to(device)
     target_batch = target_batch.to(device)
     loss, _ = model(input_batch, targets=target_batch)
@@ -30,7 +36,8 @@ def calc_loss_loader(
     device: torch.device,
     num_batches: int | None = None,
 ) -> float:
-    """TODO: data_loader의 평균 loss를 계산합니다. 검증에서는 torch.no_grad()를 사용하세요."""
+    """Compute average loss over a loader, optionally truncated to num_batches."""
+
     if num_batches is None:
         num_batches = len(data_loader)
     else:
@@ -46,13 +53,67 @@ def calc_loss_loader(
         for batch_idx, (input_batch, target_batch) in enumerate(data_loader):
             if batch_idx >= num_batches:
                 break
-            loss = calc_loss_batch(input_batch, target_batch, model, device)
-            total_loss += loss.item()
+            total_loss += calc_loss_batch(input_batch, target_batch, model, device).item()
 
     if was_training:
         model.train()
 
     return total_loss / num_batches
+
+
+def compute_perplexity(loss_value: float) -> float:
+    """Convert loss to perplexity with a numerical safety cap."""
+
+    return math.exp(min(loss_value, 20.0))
+
+
+def compute_grad_norm(parameters) -> float:
+    """Return the global L2 gradient norm for a parameter iterable."""
+
+    total = 0.0
+    for parameter in parameters:
+        if parameter.grad is None:
+            continue
+        grad = parameter.grad.detach()
+        total += float(torch.sum(grad * grad).item())
+    return math.sqrt(total)
+
+
+def compute_historical_fit_metrics(
+    *,
+    initial_train_loss: float,
+    initial_val_loss: float,
+    final_train_loss: float,
+    final_val_loss: float,
+    max_steps: int,
+) -> dict[str, float | str]:
+    """Reconstruct the historical mini-GPT fit metrics used in train/ archives."""
+
+    train_loss_delta = initial_train_loss - final_train_loss
+    val_loss_delta = initial_val_loss - final_val_loss
+    initial_gap = initial_val_loss - initial_train_loss
+    final_gap = final_val_loss - final_train_loss
+    gap_delta = final_gap - initial_gap
+    train_val_improvement_gap = train_loss_delta - val_loss_delta
+    overfit_score = max(0.0, final_gap) + 2.0 * max(0.0, gap_delta)
+
+    if max_steps <= 1 or (train_loss_delta < 0.05 and val_loss_delta < 0.05):
+        fit_status = "underfit_or_too_short"
+    elif overfit_score >= 0.148:
+        fit_status = "overfit_risk"
+    else:
+        fit_status = "generalizing"
+
+    return {
+        "initial_generalization_gap": initial_gap,
+        "final_generalization_gap": final_gap,
+        "generalization_gap_delta": gap_delta,
+        "train_loss_delta": train_loss_delta,
+        "val_loss_delta": val_loss_delta,
+        "train_val_improvement_gap": train_val_improvement_gap,
+        "overfit_score": overfit_score,
+        "fit_status": fit_status,
+    }
 
 
 def save_checkpoint(
@@ -62,7 +123,8 @@ def save_checkpoint(
     global_step: int,
     path: str,
 ) -> None:
-    """TODO: model/optimizer 상태, epoch, global_step을 torch.save로 저장합니다."""
+    """Save model/optimizer state with epoch and global_step."""
+
     checkpoint = {
         "model_state_dict": model.state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
@@ -78,7 +140,8 @@ def load_checkpoint(
     path: str,
     device: torch.device,
 ) -> tuple[int, int]:
-    """TODO: torch.load로 checkpoint를 읽어 model/optimizer 상태를 복원합니다."""
+    """Restore a checkpoint created by save_checkpoint()."""
+
     checkpoint = torch.load(path, map_location=device)
     model.load_state_dict(checkpoint["model_state_dict"])
     if optimizer is not None and "optimizer_state_dict" in checkpoint:
@@ -95,7 +158,8 @@ def generate(
     top_k: int | None = None,
     eos_id: int | None = None,
 ) -> torch.Tensor:
-    """TODO: temperature와 top-k 샘플링을 지원하는 생성 함수를 구현합니다."""
+    """Temperature + top-k sampling helper."""
+
     was_training = model.training
     model.eval()
 
@@ -109,17 +173,20 @@ def generate(
                 next_token = torch.argmax(next_token_logits, dim=-1, keepdim=True)
             else:
                 next_token_logits = next_token_logits / temperature
-
                 if top_k is not None and top_k > 0:
-                    top_logits, _ = torch.topk(next_token_logits, min(top_k, next_token_logits.size(-1)))
+                    top_logits, _ = torch.topk(
+                        next_token_logits,
+                        min(top_k, next_token_logits.size(-1)),
+                    )
                     cutoff = top_logits[:, [-1]]
-                    next_token_logits = next_token_logits.masked_fill(next_token_logits < cutoff, float("-inf"))
-
+                    next_token_logits = next_token_logits.masked_fill(
+                        next_token_logits < cutoff,
+                        float("-inf"),
+                    )
                 probs = torch.softmax(next_token_logits, dim=-1)
                 next_token = torch.multinomial(probs, num_samples=1)
 
             idx = torch.cat((idx, next_token), dim=1)
-
             if eos_id is not None and torch.all(next_token == eos_id):
                 break
 
@@ -139,7 +206,8 @@ def generate_and_print_sample(
     temperature: float = 0.8,
     top_k: int | None = 40,
 ) -> None:
-    """TODO: start_context를 encode하고 generate 후 decode하여 출력합니다."""
+    """Encode prompt, sample continuation, and print decoded text."""
+
     model.to(device)
     start_ids = tokenizer.encode(start_context, add_bos_eos=False)
     idx = torch.tensor([start_ids], dtype=torch.long, device=device)
@@ -171,7 +239,10 @@ def train_model(
     start_epoch: int = 0,
     global_step: int = 0,
 ) -> list[float]:
-    """TODO: 사전 학습 루프를 구현하고 epoch별 train loss 리스트를 반환합니다."""
+    """Simple epoch-based pretraining loop kept for the existing interface."""
+
+    del start_context, tokenizer, ckpt_freq, global_step
+
     train_losses = []
     model.to(device)
 
@@ -182,14 +253,11 @@ def train_model(
 
         for input_batch, target_batch in train_loader:
             loss = calc_loss_batch(input_batch, target_batch, model, device)
-
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-
             total_loss += loss.item()
             num_batches += 1
-            global_step += 1
 
         avg_train_loss = total_loss / max(num_batches, 1)
         train_losses.append(avg_train_loss)
@@ -201,7 +269,8 @@ def train_model(
 
 
 def plot_losses(train_losses: list[float], val_losses: list[float] | None = None) -> None:
-    """훈련/검증 손실 그래프를 그리는 제공 함수."""
+    """Plot train/val losses using a non-interactive backend."""
+
     os.environ.setdefault("MPLBACKEND", "Agg")
     os.environ.setdefault("MPLCONFIGDIR", "/tmp/mplcfg")
     import matplotlib.pyplot as plt
