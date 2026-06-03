@@ -156,9 +156,40 @@ def test_run_train_experiment_returns_notebook_friendly_state_and_logs(tmp_path)
     assert result["model"] is not None
     assert result["tokenizer"] is not None
     assert result["config"]["activation_name"] == "relu"
+    assert result["plan"]["activation_name"] == "relu"
+    assert result["plan"]["batch_size"] == 2
+    assert result["plan"]["context_length"] == 8
+    assert result["plan"]["emb_dim"] == 32
+    assert result["plan"]["n_heads"] == 4
+    assert result["plan"]["n_layers"] == 1
     assert result["history"]
     assert {"epoch", "train_loss", "val_loss", "gap"} <= set(result["history"][0].keys())
     assert result["run_dir"].exists()
     assert (result["run_dir"] / "results.csv").exists()
     assert (result["run_dir"] / "step_history.csv").exists()
     assert checkpoint_path.exists()
+    assert result["plan"]["tokenizer_chars"] == 300
+
+
+def test_run_train_experiment_rejects_mismatched_tokenizer_chars_for_direct_corpus(tmp_path):
+    import pytest
+    import run_experiment
+
+    corpus = "이 영화는 정말 재미있다. " * 50
+
+    with pytest.raises(ValueError, match="tokenizer_chars must match"):
+        run_experiment.run_train_experiment(
+            corpus=corpus,
+            output_dir=tmp_path / "runs",
+            run_name="bad_notebook_run",
+            corpus_len=300,
+            tokenizer_chars=120,
+            vocab_size=200,
+            context_length=8,
+            emb_dim=32,
+            n_heads=4,
+            n_layers=1,
+            batch_size=2,
+            num_epochs=1,
+            device="cpu",
+        )

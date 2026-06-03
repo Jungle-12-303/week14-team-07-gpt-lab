@@ -442,7 +442,7 @@ def append_run_index(output_root: Path, summary: dict) -> None:
 
 def build_experiment_args(
     *,
-    preset: str = "tiny",
+    preset: str | None = None,
     output_dir: str | Path | None = None,
     run_name: str | None = None,
     text_file: str | Path | None = None,
@@ -450,7 +450,8 @@ def build_experiment_args(
     **overrides,
 ):
     values = deepcopy(COMMON_DEFAULTS)
-    values.update(deepcopy(PRESETS.get(preset, {})))
+    if preset is not None:
+        values.update(deepcopy(PRESETS.get(preset, {})))
     values["preset"] = preset
 
     if output_dir is not None:
@@ -1026,10 +1027,11 @@ def run_train_experiment(
     text_file: str | Path | None = None,
     output_dir: str | Path | None = None,
     run_name: str = "notebook_run",
-    preset: str = "tiny",
+    preset: str | None = None,
     device: str = "cpu",
     corpus_len: int | None = None,
     checkpoint_path: str | Path | None = None,
+    align_tokenizer_to_corpus: bool = True,
     run_tests: bool = False,
     test_paths: list[str] | tuple[str, ...] | None = None,
     repo_root: str | Path | None = None,
@@ -1043,6 +1045,25 @@ def run_train_experiment(
         corpus = text_path.read_text(encoding="utf-8")
     if corpus_len is not None:
         corpus = corpus[:corpus_len]
+
+    # In notebook-style runs that pass an in-memory corpus directly, keep the
+    # tokenizer training window aligned with the actual corpus slice used for
+    # model training so the baseline is not accidentally built on mismatched
+    # text ranges.
+    if align_tokenizer_to_corpus and text_file is None:
+        effective_corpus_chars = len(corpus)
+        requested_tokenizer_chars = overrides.get("tokenizer_chars")
+        if (
+            requested_tokenizer_chars is not None
+            and int(requested_tokenizer_chars) != effective_corpus_chars
+        ):
+            raise ValueError(
+                "When passing corpus directly, tokenizer_chars must match the "
+                "actual corpus slice used for training. "
+                f"Got tokenizer_chars={requested_tokenizer_chars}, "
+                f"effective_corpus_chars={effective_corpus_chars}."
+            )
+        overrides["tokenizer_chars"] = effective_corpus_chars
 
     output_root = Path(output_dir or COMMON_DEFAULTS["output_dir"])
     output_root.mkdir(parents=True, exist_ok=True)
